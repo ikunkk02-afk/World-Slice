@@ -18,12 +18,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /**
  * Relocates the End arrival and its obsidian platform into the slice. Vanilla
  * always lands at X=100, which is outside World Slice. The platform centre is
- * moved to the slice centre X (with vanilla's Y/Z kept), so the player never
- * arrives over the void. Returning from the End to the Overworld is left to
- * vanilla bed/spawn logic.
+ * moved to the slice centre X (X=0 for the End) and the ~100-block distance
+ * from the dragon-fight centre is moved onto the open-ended Z axis, so the
+ * player arrives at Z=100 and travels along Z toward the (0,0) exit portal.
+ * Returning from the End to the Overworld is left to vanilla bed/spawn logic.
  */
 @Mixin(EndPortalBlock.class)
 public abstract class EndPortalBlockMixin {
+    /** The Z distance of the arrival platform from the (0,0) dragon centre. */
+    private static final int END_ARRIVAL_Z = 100;
+
     @Inject(method = "getPortalDestination", at = @At("HEAD"), cancellable = true)
     private void worldslice$relocateEndArrival(
         ServerLevel level, Entity entity, BlockPos pos, CallbackInfoReturnable<DimensionTransition> cir
@@ -39,7 +43,7 @@ public abstract class EndPortalBlockMixin {
 
         int centerX = WorldSliceBounds.centerX(endLevel);
         int platformY = ServerLevel.END_SPAWN_POINT.getY() - 1;
-        int platformZ = ServerLevel.END_SPAWN_POINT.getZ();
+        int platformZ = END_ARRIVAL_Z;
         EndPlatformFeature.createEndPlatform(endLevel, new BlockPos(centerX, platformY, platformZ), true);
 
         Vec3 arrival = new BlockPos(centerX, ServerLevel.END_SPAWN_POINT.getY(), platformZ)

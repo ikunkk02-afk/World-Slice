@@ -9,7 +9,9 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.WorldGenRegion;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.StructureManager;
@@ -42,15 +44,17 @@ public final class WorldSliceNoiseChunkGenerator extends NoiseBasedChunkGenerato
     ).apply(instance, WorldSliceNoiseChunkGenerator::new));
 
     private final NoiseBasedChunkGenerator parent;
+    private final ResourceKey<Level> dimension;
     private final IntSupplier thicknessSupplier;
 
     public WorldSliceNoiseChunkGenerator(NoiseBasedChunkGenerator parent) {
-        this(parent, () -> WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS);
+        this(parent, Level.OVERWORLD, () -> WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS);
     }
 
-    public WorldSliceNoiseChunkGenerator(NoiseBasedChunkGenerator parent, IntSupplier thicknessSupplier) {
+    public WorldSliceNoiseChunkGenerator(NoiseBasedChunkGenerator parent, ResourceKey<Level> dimension, IntSupplier thicknessSupplier) {
         super(parent.getBiomeSource(), parent.generatorSettings());
         this.parent = parent;
+        this.dimension = dimension;
         this.thicknessSupplier = thicknessSupplier;
     }
 
@@ -64,21 +68,26 @@ public final class WorldSliceNoiseChunkGenerator extends NoiseBasedChunkGenerato
         return WorldSliceWorldSettings.sanitize(thicknessSupplier.getAsInt());
     }
 
+    @Override
+    public ResourceKey<Level> dimension() {
+        return dimension;
+    }
+
     private NoiseBasedChunkGenerator parentNoiseGenerator() {
         return parent;
     }
 
     private boolean isPlayable(ChunkAccess chunk) {
-        return WorldSliceBounds.doesChunkIntersectSlice(chunk.getPos(), worldThickness());
+        return WorldSliceBounds.doesChunkIntersectSlice(dimension, chunk.getPos(), worldThickness());
     }
 
     private boolean isPartial(ChunkAccess chunk) {
-        return WorldSliceBounds.isPartialBoundaryChunk(chunk.getPos(), worldThickness());
+        return WorldSliceBounds.isPartialBoundaryChunk(dimension, chunk.getPos(), worldThickness());
     }
 
     private void trimIfPartial(ChunkAccess chunk) {
         if (isPartial(chunk)) {
-            WorldSliceBounds.trimChunkToSlice(chunk, worldThickness());
+            WorldSliceBounds.trimChunkToSlice(dimension, chunk, worldThickness());
         }
     }
 
@@ -121,7 +130,7 @@ public final class WorldSliceNoiseChunkGenerator extends NoiseBasedChunkGenerato
 
     @Override
     public void spawnOriginalMobs(WorldGenRegion level) {
-        if (WorldSliceBounds.doesChunkIntersectSlice(level.getCenter(), worldThickness())) {
+        if (WorldSliceBounds.doesChunkIntersectSlice(dimension, level.getCenter(), worldThickness())) {
             parent.spawnOriginalMobs(level);
             trimIfPartial(level.getChunk(level.getCenter().x, level.getCenter().z));
         }
@@ -192,12 +201,12 @@ public final class WorldSliceNoiseChunkGenerator extends NoiseBasedChunkGenerato
 
     @Override
     public int getBaseHeight(int x, int z, Heightmap.Types type, LevelHeightAccessor level, RandomState random) {
-        return WorldSliceBounds.isInsideX(x, worldThickness()) ? parent.getBaseHeight(x, z, type, level, random) : getMinY();
+        return WorldSliceBounds.isInsideX(dimension, x, worldThickness()) ? parent.getBaseHeight(x, z, type, level, random) : getMinY();
     }
 
     @Override
     public NoiseColumn getBaseColumn(int x, int z, LevelHeightAccessor height, RandomState random) {
-        if (WorldSliceBounds.isInsideX(x, worldThickness())) {
+        if (WorldSliceBounds.isInsideX(dimension, x, worldThickness())) {
             return parent.getBaseColumn(x, z, height, random);
         }
 
@@ -209,6 +218,6 @@ public final class WorldSliceNoiseChunkGenerator extends NoiseBasedChunkGenerato
     @Override
     public void addDebugScreenInfo(List<String> info, RandomState random, BlockPos pos) {
         parent.addDebugScreenInfo(info, random, pos);
-        info.add("World Slice: X=" + WorldSliceBounds.minX() + ".." + WorldSliceBounds.maxX(worldThickness()));
+        info.add("World Slice: X=" + WorldSliceBounds.minX(dimension, worldThickness()) + ".." + WorldSliceBounds.maxX(dimension, worldThickness()));
     }
 }

@@ -110,4 +110,45 @@ class WorldSliceBoundsTest {
         assertTrue(WorldSliceBounds.isSupportedDimension(Level.NETHER));
         assertTrue(WorldSliceBounds.isSupportedDimension(Level.END));
     }
+
+    @Test
+    void endSliceIsCenteredOnVanillaOrigin() {
+        assertEquals(0, WorldSliceBounds.minX(Level.END, 1));
+        assertEquals(0, WorldSliceBounds.maxX(Level.END, 1));
+
+        assertEquals(-1, WorldSliceBounds.minX(Level.END, 3));
+        assertEquals(1, WorldSliceBounds.maxX(Level.END, 3));
+
+        assertEquals(-2, WorldSliceBounds.minX(Level.END, 5));
+        assertEquals(2, WorldSliceBounds.maxX(Level.END, 5));
+
+        assertEquals(-8, WorldSliceBounds.minX(Level.END, 16));
+        assertEquals(7, WorldSliceBounds.maxX(Level.END, 16));
+
+        assertEquals(-8, WorldSliceBounds.minX(Level.END, 17));
+        assertEquals(8, WorldSliceBounds.maxX(Level.END, 17));
+
+        assertEquals(0, WorldSliceBounds.centerX(Level.END, 16));
+        assertEquals(0, WorldSliceBounds.centerX(Level.END, 17));
+    }
+
+    @Test
+    void endSliceWidthIsExactAndAlwaysContainsOrigin() {
+        for (int thickness : new int[] {1, 2, 7, 15, 16, 17, 31, 32, 33, 64}) {
+            SliceBounds bounds = WorldSliceBounds.forDimension(Level.END, thickness);
+            assertEquals(thickness, bounds.thickness());
+            assertTrue(bounds.contains(0), "X=0 must stay inside an End slice");
+            assertEquals(0, bounds.centerX());
+        }
+    }
+
+    @Test
+    void overworldAndNetherKeepZeroOrigin() {
+        for (int thickness : new int[] {1, 2, 7, 16, 17, 33}) {
+            assertEquals(0, WorldSliceBounds.minX(Level.OVERWORLD, thickness));
+            assertEquals(thickness - 1, WorldSliceBounds.maxX(Level.OVERWORLD, thickness));
+            assertEquals(0, WorldSliceBounds.minX(Level.NETHER, thickness));
+            assertEquals(thickness - 1, WorldSliceBounds.maxX(Level.NETHER, thickness));
+        }
+    }
 }

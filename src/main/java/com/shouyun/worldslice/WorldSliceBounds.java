@@ -22,10 +22,15 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-/** Central definition of the playable block, chunk and player bounds. */
+/**
+ * Central definition of the playable block, chunk and player bounds.
+ *
+ * <p>The Overworld and Nether are sliced from {@code X=0}. The End is sliced
+ * symmetrically around the vanilla dragon-fight origin {@code X=0}, so the
+ * central bedrock exit portal remains at the centre of the slice. All methods
+ * accept the current dimension so no caller has to special-case the End.</p>
+ */
 public final class WorldSliceBounds {
-    private static final int MIN_X = 0;
-    private static final double MIN_PLAYER_X = MIN_X;
     private static final double PLAYER_SAFETY_EPSILON = 1.0E-4D;
     private static final double COLLISION_QUERY_MARGIN = 1.0D;
 
@@ -48,7 +53,91 @@ public final class WorldSliceBounds {
         return SUPPORTED_DIMENSIONS.contains(dimension);
     }
 
-    /** Default, context-free view retained for unit tests and old callers. */
+    // ---------------------------------------------------------------------
+    // Dimension-specific slice bounds
+    // ---------------------------------------------------------------------
+
+    /** The inclusive block-column range for a dimension and thickness. */
+    public static SliceBounds forDimension(ResourceKey<Level> dimension, int thickness) {
+        int sanitized = WorldSliceWorldSettings.sanitize(thickness);
+        int minX = dimension == Level.END ? -(sanitized / 2) : 0;
+        return new SliceBounds(minX, minX + sanitized - 1);
+    }
+
+    /** The inclusive block-column range currently active in a level. */
+    public static SliceBounds forLevel(Level level) {
+        return forDimension(level.dimension(), thickness(level));
+    }
+
+    public static int minX(ResourceKey<Level> dimension, int thickness) {
+        return forDimension(dimension, thickness).minX();
+    }
+
+    public static int maxX(ResourceKey<Level> dimension, int thickness) {
+        return forDimension(dimension, thickness).maxX();
+    }
+
+    public static int minX(Level level) {
+        return forLevel(level).minX();
+    }
+
+    public static int maxX(Level level) {
+        return forLevel(level).maxX();
+    }
+
+    public static int centerX(ResourceKey<Level> dimension, int thickness) {
+        return forDimension(dimension, thickness).centerX();
+    }
+
+    public static int centerX(Level level) {
+        return forLevel(level).centerX();
+    }
+
+    // ---------------------------------------------------------------------
+    // Context-free helpers. These describe the Overworld (minX = 0) and are
+    // kept for unit tests, spawn search and debug output.
+    // ---------------------------------------------------------------------
+
+    public static int minX() {
+        return 0;
+    }
+
+    public static int maxX() {
+        return maxX(Level.OVERWORLD, WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS);
+    }
+
+    public static int maxX(int worldThickness) {
+        return forDimension(Level.OVERWORLD, worldThickness).maxX();
+    }
+
+    public static int centerX(int worldThickness) {
+        return forDimension(Level.OVERWORLD, worldThickness).centerX();
+    }
+
+    public static int thickness() {
+        return WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS;
+    }
+
+    public static int thickness(Level level) {
+        if (level.isClientSide) {
+            return WorldSliceWorldSettings.clientWorldThickness();
+        }
+        if (level instanceof ServerLevel serverLevel
+            && serverLevel.getChunkSource() instanceof ServerChunkCache serverChunkCache
+            && serverChunkCache.getGenerator() instanceof WorldSliceGenerator generator) {
+            return generator.worldThickness();
+        }
+        return WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS;
+    }
+
+    public static int chunkWidth(int worldThickness) {
+        return (WorldSliceWorldSettings.sanitize(worldThickness) + 15) / 16;
+    }
+
+    // ---------------------------------------------------------------------
+    // Block bounds
+    // ---------------------------------------------------------------------
+
     public static boolean isInside(BlockPos pos) {
         return isInsideX(pos.getX());
     }
@@ -57,12 +146,31 @@ public final class WorldSliceBounds {
         return isInsideX(level, pos.getX());
     }
 
+    public static boolean isInside(BlockGetter level, BlockPos pos) {
+        Level actualLevel = asLevel(level);
+        return actualLevel == null ? isInside(pos) : isInside(actualLevel, pos);
+    }
+
     public static boolean isInsideX(int x) {
-        return isInsideX(x, WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS);
+        return isInsideX(Level.OVERWORLD, x, WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS);
+    }
+
+    public static boolean isInsideX(int x, int worldThickness) {
+        return isInsideX(Level.OVERWORLD, x, worldThickness);
     }
 
     public static boolean isInsideX(Level level, int x) {
-        return isInsideX(x, thickness(level));
+        return isInsideX(level.dimension(), x, thickness(level));
+    }
+
+    public static boolean isInsideX(ResourceKey<Level> dimension, int x, int worldThickness) {
+        SliceBounds bounds = forDimension(dimension, worldThickness);
+        return bounds.contains(x);
+    }
+
+    private static boolean isInsideX(ResourceKey<Level> dimension, double x, int worldThickness) {
+        SliceBounds bounds = forDimension(dimension, worldThickness);
+        return x >= bounds.minX() && x <= bounds.maxX();
     }
 
     public static boolean isInsideBlockX(int x) {
@@ -73,13 +181,9 @@ public final class WorldSliceBounds {
         return isInsideX(x, worldThickness);
     }
 
-    public static boolean isInsideX(int x, int worldThickness) {
-        return x >= MIN_X && x < WorldSliceWorldSettings.sanitize(worldThickness);
-    }
-
-    private static boolean isInsideX(double x, int worldThickness) {
-        return x >= MIN_X && x < WorldSliceWorldSettings.sanitize(worldThickness);
-    }
+    // ---------------------------------------------------------------------
+    // Chunk bounds
+    // ---------------------------------------------------------------------
 
     /** Whether any block column in the ChunkPos intersects the slice. */
     public static boolean doesChunkIntersectSlice(ChunkPos chunkPos) {
@@ -87,8 +191,12 @@ public final class WorldSliceBounds {
     }
 
     public static boolean doesChunkIntersectSlice(ChunkPos chunkPos, int worldThickness) {
-        int thickness = WorldSliceWorldSettings.sanitize(worldThickness);
-        return chunkPos.getMaxBlockX() >= MIN_X && chunkPos.getMinBlockX() < thickness;
+        return doesChunkIntersectSlice(Level.OVERWORLD, chunkPos, worldThickness);
+    }
+
+    public static boolean doesChunkIntersectSlice(ResourceKey<Level> dimension, ChunkPos chunkPos, int worldThickness) {
+        SliceBounds bounds = forDimension(dimension, worldThickness);
+        return chunkPos.getMaxBlockX() >= bounds.minX() && chunkPos.getMinBlockX() <= bounds.maxX();
     }
 
     /** Whether every block column in the ChunkPos is inside the slice. */
@@ -97,8 +205,12 @@ public final class WorldSliceBounds {
     }
 
     public static boolean isChunkFullyInsideSlice(ChunkPos chunkPos, int worldThickness) {
-        int thickness = WorldSliceWorldSettings.sanitize(worldThickness);
-        return chunkPos.getMinBlockX() >= MIN_X && chunkPos.getMaxBlockX() < thickness;
+        return isChunkFullyInsideSlice(Level.OVERWORLD, chunkPos, worldThickness);
+    }
+
+    public static boolean isChunkFullyInsideSlice(ResourceKey<Level> dimension, ChunkPos chunkPos, int worldThickness) {
+        SliceBounds bounds = forDimension(dimension, worldThickness);
+        return chunkPos.getMinBlockX() >= bounds.minX() && chunkPos.getMaxBlockX() <= bounds.maxX();
     }
 
     public static boolean isPartialBoundaryChunk(ChunkPos chunkPos) {
@@ -106,8 +218,12 @@ public final class WorldSliceBounds {
     }
 
     public static boolean isPartialBoundaryChunk(ChunkPos chunkPos, int worldThickness) {
-        return doesChunkIntersectSlice(chunkPos, worldThickness)
-            && !isChunkFullyInsideSlice(chunkPos, worldThickness);
+        return isPartialBoundaryChunk(Level.OVERWORLD, chunkPos, worldThickness);
+    }
+
+    public static boolean isPartialBoundaryChunk(ResourceKey<Level> dimension, ChunkPos chunkPos, int worldThickness) {
+        return doesChunkIntersectSlice(dimension, chunkPos, worldThickness)
+            && !isChunkFullyInsideSlice(dimension, chunkPos, worldThickness);
     }
 
     /** Kept as a compatibility alias; validity now means intersection, not full containment. */
@@ -121,11 +237,6 @@ public final class WorldSliceBounds {
 
     public static boolean canFluidEnter(BlockGetter level, BlockPos pos) {
         return isInside(level, pos);
-    }
-
-    public static boolean isInside(BlockGetter level, BlockPos pos) {
-        Level actualLevel = asLevel(level);
-        return actualLevel == null ? isInside(pos) : isInside(actualLevel, pos);
     }
 
     public static boolean isWorldSliceLevel(Level level) {
@@ -152,57 +263,18 @@ public final class WorldSliceBounds {
         return null;
     }
 
-    public static int minX() {
-        return MIN_X;
-    }
-
-    public static int maxX() {
-        return maxX(WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS);
-    }
-
-    public static int maxX(Level level) {
-        return maxX(thickness(level));
-    }
-
-    public static int maxX(int worldThickness) {
-        return WorldSliceWorldSettings.sanitize(worldThickness) - 1;
-    }
-
-    public static int thickness() {
-        return WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS;
-    }
-
-    public static int thickness(Level level) {
-        if (level.isClientSide) {
-            return WorldSliceWorldSettings.clientWorldThickness();
-        }
-        if (level instanceof ServerLevel serverLevel
-            && serverLevel.getChunkSource() instanceof ServerChunkCache serverChunkCache
-            && serverChunkCache.getGenerator() instanceof WorldSliceGenerator generator) {
-            return generator.worldThickness();
-        }
-        return WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS;
-    }
-
-    public static int chunkWidth(int worldThickness) {
-        return (WorldSliceWorldSettings.sanitize(worldThickness) + 15) / 16;
-    }
-
-    public static int centerX(int worldThickness) {
-        return (WorldSliceWorldSettings.sanitize(worldThickness) - 1) / 2;
-    }
-
-    public static int centerX(Level level) {
-        return centerX(thickness(level));
-    }
-
     /** Clamps a block X coordinate into the playable slice columns. */
     public static int clampBlockX(int x, int worldThickness) {
-        return Math.max(MIN_X, Math.min(maxX(worldThickness), x));
+        return clampBlockX(Level.OVERWORLD, x, worldThickness);
     }
 
     public static int clampBlockX(Level level, int x) {
-        return clampBlockX(x, thickness(level));
+        return clampBlockX(level.dimension(), x, thickness(level));
+    }
+
+    public static int clampBlockX(ResourceKey<Level> dimension, int x, int worldThickness) {
+        SliceBounds bounds = forDimension(dimension, worldThickness);
+        return Math.max(bounds.minX(), Math.min(bounds.maxX(), x));
     }
 
     /**
@@ -211,8 +283,8 @@ public final class WorldSliceBounds {
      * limited to the one or two intersecting partial chunks; fully external
      * chunks never enter the parent generator's terrain pipeline.
      */
-    public static void trimChunkToSlice(ChunkAccess chunk, int worldThickness) {
-        if (!isPartialBoundaryChunk(chunk.getPos(), worldThickness)) {
+    public static void trimChunkToSlice(ResourceKey<Level> dimension, ChunkAccess chunk, int worldThickness) {
+        if (!isPartialBoundaryChunk(dimension, chunk.getPos(), worldThickness)) {
             return;
         }
 
@@ -222,7 +294,7 @@ public final class WorldSliceBounds {
 
         for (int localX = 0; localX < 16; localX++) {
             int x = chunkMinX + localX;
-            if (isInsideX(x, thickness)) {
+            if (isInsideX(dimension, x, thickness)) {
                 continue;
             }
 
@@ -237,7 +309,7 @@ public final class WorldSliceBounds {
         // Features can create block entities directly on a ChunkAccess. Remove
         // any such data in columns that the slice does not expose.
         for (BlockPos pos : chunk.getBlockEntitiesPos().stream()
-            .filter(pos -> !isInsideX(pos.getX(), thickness))
+            .filter(pos -> !isInsideX(dimension, pos.getX(), thickness))
             .toList()) {
             chunk.removeBlockEntity(pos);
         }
@@ -245,32 +317,40 @@ public final class WorldSliceBounds {
         if (chunk instanceof ProtoChunk protoChunk) {
             protoChunk.getEntities().removeIf(entityTag -> {
                 ListTag position = entityTag.getList("Pos", Tag.TAG_DOUBLE);
-                return !position.isEmpty() && !isInsideX(position.getDouble(0), thickness);
+                return !position.isEmpty() && !isInsideX(dimension, position.getDouble(0), thickness);
             });
         }
         chunk.setUnsaved(true);
     }
 
-    /** The left virtual collision plane, at the outside face of block X=0. */
+    // ---------------------------------------------------------------------
+    // Player collision walls
+    // ---------------------------------------------------------------------
+
+    /** The left virtual collision plane, at the outside face of the slice's first column. */
     public static double minPlayerX() {
-        return MIN_PLAYER_X;
+        return 0.0D;
     }
 
     public static double minPlayerX(Level level) {
-        return MIN_PLAYER_X;
+        return forLevel(level).minX();
     }
 
     /** The right virtual collision plane, immediately after the last valid block column. */
     public static double maxPlayerX() {
-        return maxPlayerX(WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS);
+        return maxPlayerX(Level.OVERWORLD, WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS);
     }
 
     public static double maxPlayerX(Level level) {
-        return maxPlayerX(thickness(level));
+        return forLevel(level).maxX() + 1.0D;
     }
 
     public static double maxPlayerX(int worldThickness) {
-        return WorldSliceWorldSettings.sanitize(worldThickness);
+        return maxPlayerX(Level.OVERWORLD, worldThickness);
+    }
+
+    public static double maxPlayerX(ResourceKey<Level> dimension, int worldThickness) {
+        return forDimension(dimension, worldThickness).maxX() + 1.0D;
     }
 
     /** Returns whether an entity's complete bounding box is inside the player collision interval. */
@@ -286,32 +366,36 @@ public final class WorldSliceBounds {
 
     /** Clamps a point to the open player interval with a small safety margin. */
     public static double clampPlayerX(double x) {
-        return clampPlayerX(x, WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS);
-    }
-
-    public static double clampPlayerX(Level level, double x) {
-        return clampPlayerX(x, thickness(level));
+        return clampPlayerX(Level.OVERWORLD, x, WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS);
     }
 
     public static double clampPlayerX(double x, int worldThickness) {
-        double maxPlayerX = maxPlayerX(worldThickness);
-        return Math.max(
-            MIN_PLAYER_X + PLAYER_SAFETY_EPSILON,
-            Math.min(maxPlayerX - PLAYER_SAFETY_EPSILON, x)
-        );
+        return clampPlayerX(Level.OVERWORLD, x, worldThickness);
+    }
+
+    public static double clampPlayerX(Level level, double x) {
+        return clampPlayerX(level.dimension(), x, thickness(level));
+    }
+
+    public static double clampPlayerX(ResourceKey<Level> dimension, double x, int worldThickness) {
+        SliceBounds bounds = forDimension(dimension, worldThickness);
+        double min = bounds.minX() + PLAYER_SAFETY_EPSILON;
+        double max = bounds.maxX() + 1.0D - PLAYER_SAFETY_EPSILON;
+        return Math.max(min, Math.min(max, x));
     }
 
     /** Clamps an entity center while accounting for its actual width. */
     public static double clampPlayerX(Entity entity, double x) {
-        return clampPlayerX(entity, x, thickness(entity.level()));
+        return clampPlayerX(entity.level(), entity, x);
     }
 
-    public static double clampPlayerX(Entity entity, double x, int worldThickness) {
+    public static double clampPlayerX(Level level, Entity entity, double x) {
+        SliceBounds bounds = forLevel(level);
         double halfWidth = entity.getBbWidth() * 0.5D;
-        double min = MIN_PLAYER_X + halfWidth + PLAYER_SAFETY_EPSILON;
-        double max = maxPlayerX(worldThickness) - halfWidth - PLAYER_SAFETY_EPSILON;
+        double min = bounds.minX() + halfWidth + PLAYER_SAFETY_EPSILON;
+        double max = bounds.maxX() + 1.0D - halfWidth - PLAYER_SAFETY_EPSILON;
         if (min > max) {
-            return maxPlayerX(worldThickness) * 0.5D;
+            return (bounds.minX() + bounds.maxX() + 1.0D) * 0.5D;
         }
         return Math.max(min, Math.min(max, x));
     }
@@ -332,10 +416,12 @@ public final class WorldSliceBounds {
             collisionQuery,
             level.getMinBuildHeight(),
             level.getMaxBuildHeight(),
+            level.dimension(),
             thickness(level)
         );
     }
 
+    /** Context-free (Overworld) helper retained for unit tests. */
     static List<VoxelShape> addPlayerCollisionWalls(
         List<VoxelShape> collisions, AABB collisionQuery, int minBuildHeight, int maxBuildHeight
     ) {
@@ -344,6 +430,7 @@ public final class WorldSliceBounds {
             collisionQuery,
             minBuildHeight,
             maxBuildHeight,
+            Level.OVERWORLD,
             WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS
         );
     }
@@ -353,10 +440,13 @@ public final class WorldSliceBounds {
         AABB collisionQuery,
         int minBuildHeight,
         int maxBuildHeight,
+        ResourceKey<Level> dimension,
         int worldThickness
     ) {
-        double maxPlayerX = maxPlayerX(worldThickness);
-        if (collisionQuery.minX > MIN_PLAYER_X + COLLISION_QUERY_MARGIN
+        SliceBounds bounds = forDimension(dimension, worldThickness);
+        double minPlayerX = bounds.minX();
+        double maxPlayerX = bounds.maxX() + 1.0D;
+        if (collisionQuery.minX > minPlayerX + COLLISION_QUERY_MARGIN
             && collisionQuery.maxX < maxPlayerX - COLLISION_QUERY_MARGIN) {
             return collisions;
         }
@@ -364,10 +454,10 @@ public final class WorldSliceBounds {
         ImmutableList.Builder<VoxelShape> builder = ImmutableList.builderWithExpectedSize(collisions.size() + 2);
         builder.addAll(collisions);
         builder.add(Shapes.create(new AABB(
-            MIN_PLAYER_X - 1.0D,
+            minPlayerX - 1.0D,
             minBuildHeight,
             collisionQuery.minZ,
-            MIN_PLAYER_X,
+            minPlayerX,
             maxBuildHeight,
             collisionQuery.maxZ
         )));

@@ -9,6 +9,8 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.StructureManager;
@@ -45,37 +47,39 @@ public final class WorldSliceChunkGenerator extends ChunkGenerator implements Wo
     ).apply(instance, WorldSliceChunkGenerator::new));
 
     private final ChunkGenerator parent;
+    private final ResourceKey<Level> dimension;
     private final IntSupplier thicknessSupplier;
 
     public WorldSliceChunkGenerator(ChunkGenerator parent) {
-        this(parent, () -> WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS);
+        this(parent, Level.OVERWORLD, () -> WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS);
     }
 
-    public WorldSliceChunkGenerator(ChunkGenerator parent, IntSupplier thicknessSupplier) {
+    public WorldSliceChunkGenerator(ChunkGenerator parent, ResourceKey<Level> dimension, IntSupplier thicknessSupplier) {
         super(parent.getBiomeSource());
         this.parent = parent;
+        this.dimension = dimension;
         this.thicknessSupplier = thicknessSupplier;
     }
 
     public static ChunkGenerator wrap(ChunkGenerator generator) {
-        return wrap(generator, () -> WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS);
+        return wrap(generator, Level.OVERWORLD, () -> WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS);
     }
 
     public static ChunkGenerator wrap(ChunkGenerator generator, ServerLevel level) {
         // ServerLevel's constructor invokes this hook before its
         // ServerChunkCache/DataStorage is available. Resolve SavedData lazily
         // on the first post-construction world-generation access instead.
-        return wrap(generator, () -> WorldSliceWorldSettings.get(level).worldThickness());
+        return wrap(generator, level.dimension(), () -> WorldSliceWorldSettings.get(level).worldThickness());
     }
 
-    private static ChunkGenerator wrap(ChunkGenerator generator, IntSupplier thicknessSupplier) {
+    private static ChunkGenerator wrap(ChunkGenerator generator, ResourceKey<Level> dimension, IntSupplier thicknessSupplier) {
         if (generator instanceof WorldSliceGenerator) {
             return generator;
         }
         if (generator instanceof NoiseBasedChunkGenerator noiseGenerator) {
-            return new WorldSliceNoiseChunkGenerator(noiseGenerator, thicknessSupplier);
+            return new WorldSliceNoiseChunkGenerator(noiseGenerator, dimension, thicknessSupplier);
         }
-        return new WorldSliceChunkGenerator(generator, thicknessSupplier);
+        return new WorldSliceChunkGenerator(generator, dimension, thicknessSupplier);
     }
 
     public ChunkGenerator parent() {
@@ -87,17 +91,22 @@ public final class WorldSliceChunkGenerator extends ChunkGenerator implements Wo
         return WorldSliceWorldSettings.sanitize(thicknessSupplier.getAsInt());
     }
 
+    @Override
+    public ResourceKey<Level> dimension() {
+        return dimension;
+    }
+
     private boolean isPlayable(ChunkAccess chunk) {
-        return WorldSliceBounds.doesChunkIntersectSlice(chunk.getPos(), worldThickness());
+        return WorldSliceBounds.doesChunkIntersectSlice(dimension, chunk.getPos(), worldThickness());
     }
 
     private boolean isPartial(ChunkAccess chunk) {
-        return WorldSliceBounds.isPartialBoundaryChunk(chunk.getPos(), worldThickness());
+        return WorldSliceBounds.isPartialBoundaryChunk(dimension, chunk.getPos(), worldThickness());
     }
 
     private void trimIfPartial(ChunkAccess chunk) {
         if (isPartial(chunk)) {
-            WorldSliceBounds.trimChunkToSlice(chunk, worldThickness());
+            WorldSliceBounds.trimChunkToSlice(dimension, chunk, worldThickness());
         }
     }
 
@@ -140,7 +149,7 @@ public final class WorldSliceChunkGenerator extends ChunkGenerator implements Wo
 
     @Override
     public void spawnOriginalMobs(WorldGenRegion level) {
-        if (WorldSliceBounds.doesChunkIntersectSlice(level.getCenter(), worldThickness())) {
+        if (WorldSliceBounds.doesChunkIntersectSlice(dimension, level.getCenter(), worldThickness())) {
             parent.spawnOriginalMobs(level);
             trimIfPartial(level.getChunk(level.getCenter().x, level.getCenter().z));
         }
@@ -211,12 +220,12 @@ public final class WorldSliceChunkGenerator extends ChunkGenerator implements Wo
 
     @Override
     public int getBaseHeight(int x, int z, Heightmap.Types type, LevelHeightAccessor level, RandomState random) {
-        return WorldSliceBounds.isInsideX(x, worldThickness()) ? parent.getBaseHeight(x, z, type, level, random) : getMinY();
+        return WorldSliceBounds.isInsideX(dimension, x, worldThickness()) ? parent.getBaseHeight(x, z, type, level, random) : getMinY();
     }
 
     @Override
     public NoiseColumn getBaseColumn(int x, int z, LevelHeightAccessor height, RandomState random) {
-        if (WorldSliceBounds.isInsideX(x, worldThickness())) {
+        if (WorldSliceBounds.isInsideX(dimension, x, worldThickness())) {
             return parent.getBaseColumn(x, z, height, random);
         }
 
@@ -228,6 +237,6 @@ public final class WorldSliceChunkGenerator extends ChunkGenerator implements Wo
     @Override
     public void addDebugScreenInfo(List<String> info, RandomState random, BlockPos pos) {
         parent.addDebugScreenInfo(info, random, pos);
-        info.add("World Slice: X=" + WorldSliceBounds.minX() + ".." + WorldSliceBounds.maxX(worldThickness()));
+        info.add("World Slice: X=" + WorldSliceBounds.minX(dimension, worldThickness()) + ".." + WorldSliceBounds.maxX(dimension, worldThickness()));
     }
 }

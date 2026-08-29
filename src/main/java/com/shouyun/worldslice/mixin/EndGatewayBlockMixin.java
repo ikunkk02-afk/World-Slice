@@ -30,9 +30,9 @@ public abstract class EndGatewayBlockMixin {
         }
 
         double safeX = WorldSliceBounds.clampPlayerX(
+            transition.newLevel(),
             entity,
-            transition.pos().x(),
-            WorldSliceBounds.thickness(transition.newLevel())
+            transition.pos().x()
         );
         if (safeX != transition.pos().x()) {
             cir.setReturnValue(new DimensionTransition(
