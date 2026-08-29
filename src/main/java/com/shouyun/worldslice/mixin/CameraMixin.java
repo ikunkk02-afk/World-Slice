@@ -27,7 +27,7 @@ public abstract class CameraMixin {
         if (SideCameraController.isEnabled() && camera.getEntity() != null) {
             double partial = camera.getPartialTickTime();
             double x = net.minecraft.util.Mth.lerp(partial, entity.xo, entity.getX())
-                - com.shouyun.worldslice.SideCameraConfig.CAMERA_DISTANCE;
+                - com.shouyun.worldslice.SideCameraConfig.cameraDistance();
             double z = net.minecraft.util.Mth.lerp(partial, entity.zo, entity.getZ());
             this.setPosition(new Vec3(x, camera.getPosition().y, z));
         }

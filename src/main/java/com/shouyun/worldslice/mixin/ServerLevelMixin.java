@@ -22,7 +22,7 @@ public abstract class ServerLevelMixin {
         ServerLevel level = args.get(0);
         ChunkGenerator generator = args.get(5);
         if (level.dimension().equals(Level.OVERWORLD) && !(generator instanceof WorldSliceGenerator)) {
-            args.set(5, WorldSliceChunkGenerator.wrap(generator));
+            args.set(5, WorldSliceChunkGenerator.wrap(generator, level));
         }
     }
 }

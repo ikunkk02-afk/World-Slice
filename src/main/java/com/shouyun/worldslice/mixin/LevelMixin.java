@@ -16,7 +16,7 @@ public abstract class LevelMixin {
     @Inject(method = "getBlockState", at = @At("HEAD"), cancellable = true)
     private void worldslice$outsideBlockState(BlockPos pos, CallbackInfoReturnable<BlockState> cir) {
         Level level = (Level) (Object) this;
-        if (WorldSliceBounds.isWorldSliceLevel(level) && !WorldSliceBounds.isInside(pos)) {
+        if (WorldSliceBounds.isWorldSliceLevel(level) && !WorldSliceBounds.isInside(level, pos)) {
             cir.setReturnValue(Blocks.VOID_AIR.defaultBlockState());
         }
     }
@@ -24,7 +24,7 @@ public abstract class LevelMixin {
     @Inject(method = "getFluidState", at = @At("HEAD"), cancellable = true)
     private void worldslice$outsideFluidState(BlockPos pos, CallbackInfoReturnable<net.minecraft.world.level.material.FluidState> cir) {
         Level level = (Level) (Object) this;
-        if (WorldSliceBounds.isWorldSliceLevel(level) && !WorldSliceBounds.isInside(pos)) {
+        if (WorldSliceBounds.isWorldSliceLevel(level) && !WorldSliceBounds.isInside(level, pos)) {
             cir.setReturnValue(Fluids.EMPTY.defaultFluidState());
         }
     }
@@ -38,7 +38,7 @@ public abstract class LevelMixin {
         BlockPos pos, BlockState state, int flags, int recursionLeft, CallbackInfoReturnable<Boolean> cir
     ) {
         Level level = (Level) (Object) this;
-        if (WorldSliceBounds.isWorldSliceLevel(level) && !WorldSliceBounds.isInside(pos)) {
+        if (WorldSliceBounds.isWorldSliceLevel(level) && !WorldSliceBounds.isInside(level, pos)) {
             cir.setReturnValue(false);
         }
     }

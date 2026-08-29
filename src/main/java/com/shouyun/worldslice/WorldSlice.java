@@ -14,6 +14,7 @@ public final class WorldSlice {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public WorldSlice(IEventBus modEventBus) {
+        modEventBus.addListener(WorldSliceNetworking::registerPayloads);
         NeoForge.EVENT_BUS.register(WorldSliceServerEvents.class);
     }
 }

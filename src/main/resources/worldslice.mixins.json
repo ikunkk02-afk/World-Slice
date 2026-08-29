@@ -14,7 +14,8 @@
     "CameraMixin",
     "MouseHandlerMixin",
     "KeyboardInputMixin",
-    "SoundEngineMixin"
+    "SoundEngineMixin",
+    "RenderChunkRegionMixin"
   ],
   "injectors": {
     "defaultRequire": 1

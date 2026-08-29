@@ -10,7 +10,7 @@ modId="${mod_id}"
 version="${mod_version}"
 displayName="${mod_name}"
 description='''
-World Slice turns Minecraft into a 16-block-thick world slice, preserving the vertical depth of vanilla terrain while allowing the world to extend infinitely sideways.
+World Slice turns Minecraft into a configurable, block-accurate world slice, preserving the vertical depth of vanilla terrain while allowing the world to extend infinitely sideways.
 '''
 
 [[mixins]]

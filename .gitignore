@@ -7,4 +7,6 @@ crash-reports/
 *.iml
 out/
 repo/
+bin/
+.vscode/
 src/generated/

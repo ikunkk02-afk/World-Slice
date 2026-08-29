@@ -1,4 +1,15 @@
 {
   "key.categories.worldslice": "World Slice",
-  "key.worldslice.side_camera": "Toggle Side Camera"
+  "key.worldslice.side_camera": "Toggle Side Camera",
+  "key.worldslice.settings": "World Slice Settings",
+  "screen.worldslice.title": "World Slice Settings",
+  "worldslice.screen.world": "World",
+  "worldslice.screen.world_thickness": "World Thickness",
+  "worldslice.screen.world_thickness_hint": "Controls the playable X-axis width. Range: 1-4096 blocks.",
+  "worldslice.screen.chunk_summary": "%s Blocks / %s Chunks",
+  "worldslice.screen.server_only": "Only server operators can change this setting.",
+  "worldslice.screen.camera": "Side Camera",
+  "worldslice.screen.camera_distance_label": "Camera Distance",
+  "worldslice.screen.camera_distance": "Camera Distance: %s Blocks",
+  "worldslice.screen.invalid_thickness": "Enter a whole number from %s to %s blocks."
 }

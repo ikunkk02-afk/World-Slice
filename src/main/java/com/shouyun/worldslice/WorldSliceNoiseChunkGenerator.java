@@ -2,6 +2,7 @@ package com.shouyun.worldslice;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.IntSupplier;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -41,10 +42,16 @@ public final class WorldSliceNoiseChunkGenerator extends NoiseBasedChunkGenerato
     ).apply(instance, WorldSliceNoiseChunkGenerator::new));
 
     private final NoiseBasedChunkGenerator parent;
+    private final IntSupplier thicknessSupplier;
 
     public WorldSliceNoiseChunkGenerator(NoiseBasedChunkGenerator parent) {
+        this(parent, () -> WorldSliceWorldSettings.DEFAULT_WORLD_THICKNESS);
+    }
+
+    public WorldSliceNoiseChunkGenerator(NoiseBasedChunkGenerator parent, IntSupplier thicknessSupplier) {
         super(parent.getBiomeSource(), parent.generatorSettings());
         this.parent = parent;
+        this.thicknessSupplier = thicknessSupplier;
     }
 
     @Override
@@ -52,12 +59,27 @@ public final class WorldSliceNoiseChunkGenerator extends NoiseBasedChunkGenerato
         return parent;
     }
 
+    @Override
+    public int worldThickness() {
+        return WorldSliceWorldSettings.sanitize(thicknessSupplier.getAsInt());
+    }
+
     private NoiseBasedChunkGenerator parentNoiseGenerator() {
         return parent;
     }
 
     private boolean isPlayable(ChunkAccess chunk) {
-        return WorldSliceBounds.isValidChunk(chunk.getPos());
+        return WorldSliceBounds.doesChunkIntersectSlice(chunk.getPos(), worldThickness());
+    }
+
+    private boolean isPartial(ChunkAccess chunk) {
+        return WorldSliceBounds.isPartialBoundaryChunk(chunk.getPos(), worldThickness());
+    }
+
+    private void trimIfPartial(ChunkAccess chunk) {
+        if (isPartial(chunk)) {
+            WorldSliceBounds.trimChunkToSlice(chunk, worldThickness());
+        }
     }
 
     @Override
@@ -85,6 +107,7 @@ public final class WorldSliceNoiseChunkGenerator extends NoiseBasedChunkGenerato
     ) {
         if (isPlayable(chunk)) {
             parent.applyCarvers(level, seed, random, biomeManager, structureManager, chunk, step);
+            trimIfPartial(chunk);
         }
     }
 
@@ -92,13 +115,15 @@ public final class WorldSliceNoiseChunkGenerator extends NoiseBasedChunkGenerato
     public void buildSurface(WorldGenRegion level, StructureManager structureManager, RandomState random, ChunkAccess chunk) {
         if (isPlayable(chunk)) {
             parent.buildSurface(level, structureManager, random, chunk);
+            trimIfPartial(chunk);
         }
     }
 
     @Override
     public void spawnOriginalMobs(WorldGenRegion level) {
-        if (WorldSliceBounds.isValidChunk(level.getCenter())) {
+        if (WorldSliceBounds.doesChunkIntersectSlice(level.getCenter(), worldThickness())) {
             parent.spawnOriginalMobs(level);
+            trimIfPartial(level.getChunk(level.getCenter().x, level.getCenter().z));
         }
     }
 
@@ -106,6 +131,7 @@ public final class WorldSliceNoiseChunkGenerator extends NoiseBasedChunkGenerato
     public void applyBiomeDecoration(WorldGenLevel level, ChunkAccess chunk, StructureManager structureManager) {
         if (isPlayable(chunk)) {
             parent.applyBiomeDecoration(level, chunk, structureManager);
+            trimIfPartial(chunk);
         }
     }
 
@@ -133,8 +159,15 @@ public final class WorldSliceNoiseChunkGenerator extends NoiseBasedChunkGenerato
     public CompletableFuture<ChunkAccess> fillFromNoise(
         Blender blender, RandomState randomState, StructureManager structureManager, ChunkAccess chunk
     ) {
-        return isPlayable(chunk) ? parent.fillFromNoise(blender, randomState, structureManager, chunk)
-            : CompletableFuture.completedFuture(chunk);
+        if (!isPlayable(chunk)) {
+            return CompletableFuture.completedFuture(chunk);
+        }
+
+        return parent.fillFromNoise(blender, randomState, structureManager, chunk)
+            .thenApply(generated -> {
+                trimIfPartial(generated);
+                return generated;
+            });
     }
 
     @Override
@@ -159,12 +192,12 @@ public final class WorldSliceNoiseChunkGenerator extends NoiseBasedChunkGenerato
 
     @Override
     public int getBaseHeight(int x, int z, Heightmap.Types type, LevelHeightAccessor level, RandomState random) {
-        return WorldSliceBounds.isInsideX(x) ? parent.getBaseHeight(x, z, type, level, random) : getMinY();
+        return WorldSliceBounds.isInsideX(x, worldThickness()) ? parent.getBaseHeight(x, z, type, level, random) : getMinY();
     }
 
     @Override
     public NoiseColumn getBaseColumn(int x, int z, LevelHeightAccessor height, RandomState random) {
-        if (WorldSliceBounds.isInsideX(x)) {
+        if (WorldSliceBounds.isInsideX(x, worldThickness())) {
             return parent.getBaseColumn(x, z, height, random);
         }
 
@@ -176,6 +209,6 @@ public final class WorldSliceNoiseChunkGenerator extends NoiseBasedChunkGenerato
     @Override
     public void addDebugScreenInfo(List<String> info, RandomState random, BlockPos pos) {
         parent.addDebugScreenInfo(info, random, pos);
-        info.add("World Slice: X=" + WorldSliceBounds.minX() + ".." + WorldSliceBounds.maxX());
+        info.add("World Slice: X=" + WorldSliceBounds.minX() + ".." + WorldSliceBounds.maxX(worldThickness()));
     }
 }

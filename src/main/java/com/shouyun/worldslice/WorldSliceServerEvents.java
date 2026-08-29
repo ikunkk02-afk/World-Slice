@@ -9,6 +9,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.portal.DimensionTransition;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerRespawnPositionEvent;
@@ -52,7 +53,7 @@ public final class WorldSliceServerEvents {
 
             logFinalSpawn(overworld, savedSpawn != null ? savedSpawn : overworld.getLevelData().getSpawnPos());
             WorldSlice.LOGGER.info("World Slice Overworld active: X={}..{} (saved spawn retained)",
-                WorldSliceBounds.minX(), WorldSliceBounds.maxX());
+                WorldSliceBounds.minX(), WorldSliceBounds.maxX(overworld));
             return;
         }
 
@@ -66,10 +67,10 @@ public final class WorldSliceServerEvents {
         advanceSpawnSearch(event.getServer(), SpawnSafety.INITIAL_CHUNKS_PER_START);
         if (PENDING_SPAWN_SEARCHES.containsKey(event.getServer())) {
             WorldSlice.LOGGER.info("World Slice Overworld active: X={}..{} (spawn search in progress)",
-                WorldSliceBounds.minX(), WorldSliceBounds.maxX());
+                WorldSliceBounds.minX(), WorldSliceBounds.maxX(overworld));
         } else {
             WorldSlice.LOGGER.info("World Slice Overworld active: X={}..{} (spawn initialized)",
-                WorldSliceBounds.minX(), WorldSliceBounds.maxX());
+                WorldSliceBounds.minX(), WorldSliceBounds.maxX(overworld));
         }
     }
 
@@ -149,7 +150,7 @@ public final class WorldSliceServerEvents {
 
     private static void relocatePlayersAtUninitializedSpawn(ServerLevel level, BlockPos spawn) {
         for (ServerPlayer player : level.players()) {
-            if (!WorldSliceBounds.isInside(player.blockPosition())
+            if (!WorldSliceBounds.isInside(level, player.blockPosition())
                 || !SpawnSafety.isSafeSpawnPosition(level, player.blockPosition())) {
                 player.teleportTo(spawn.getX() + 0.5D, spawn.getY(), spawn.getZ() + 0.5D);
             }
@@ -174,7 +175,7 @@ public final class WorldSliceServerEvents {
         }
 
         BlockPos currentSpawn = level.getLevelData().getSpawnPos();
-        return WorldSliceBounds.isInside(currentSpawn) && SpawnSafety.isSafeSpawnPosition(level, currentSpawn)
+        return WorldSliceBounds.isInside(level, currentSpawn) && SpawnSafety.isSafeSpawnPosition(level, currentSpawn)
             ? currentSpawn
             : null;
     }
@@ -183,6 +184,9 @@ public final class WorldSliceServerEvents {
     public static void onPlayerLoggedIn(PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player) || !(player.level() instanceof ServerLevel level)) {
             return;
+        }
+        if (WorldSliceBounds.isWorldSliceLevel(level)) {
+            PacketDistributor.sendToPlayer(player, new WorldSliceSettingsSyncPayload(WorldSliceWorldSettings.get(level).worldThickness()));
         }
         if (WorldSliceBounds.isWorldSliceLevel(level) && !WorldSliceBounds.isPlayerInside(player)) {
             BlockPos safeSpawn = getFallbackSpawn(level);
@@ -201,7 +205,7 @@ public final class WorldSliceServerEvents {
             && WorldSliceBounds.isWorldSliceLevel(transition.newLevel())) {
             ServerLevel level = transition.newLevel();
             BlockPos vanillaRespawn = BlockPos.containing(transition.pos());
-            if (WorldSliceBounds.isInside(vanillaRespawn)
+            if (WorldSliceBounds.isInside(level, vanillaRespawn)
                 && SpawnSafety.isSafeSpawnPosition(level, vanillaRespawn)) {
                 // Keep vanilla bed/default/dimension respawn positions when
                 // they are already valid inside the one playable chunk.

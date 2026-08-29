@@ -14,9 +14,6 @@ import net.minecraft.world.level.levelgen.Heightmap;
  * world-generation seed or making a large synchronous chunk-generation burst.
  */
 public final class SpawnSafety {
-    /** The closest columns to the slice centre are considered first. */
-    private static final int[] PREFERRED_X = {7, 8, 6, 9, 5, 10, 4, 11, 3, 12, 2, 13, 1, 14, 0, 15};
-
     /**
      * Search radii in chunks. The third phase covers +/-4096 blocks from the
      * vanilla spawn Z. The last phase is an asynchronous emergency extension
@@ -34,10 +31,10 @@ public final class SpawnSafety {
     /**
      * Starts a bounded, resumable search centred on the spawn Z Minecraft
      * already selected for this world. X is deliberately not copied because
-     * only chunk X=0 exists in World Slice.
+     * only chunks intersecting the configured slice are requested.
      */
     public static Search beginSearch(ServerLevel level, BlockPos vanillaSpawn) {
-        return new Search(level, vanillaSpawn.getZ());
+        return new Search(level, vanillaSpawn.getZ(), WorldSliceBounds.thickness(level));
     }
 
     /**
@@ -45,7 +42,7 @@ public final class SpawnSafety {
      * also used for vanilla bed and dimension respawn positions.
      */
     public static boolean isSafeSpawnPosition(ServerLevel level, BlockPos feet) {
-        if (!WorldSliceBounds.isInside(feet) || feet.getY() <= level.getMinBuildHeight()
+        if (!WorldSliceBounds.isInside(level, feet) || feet.getY() <= level.getMinBuildHeight()
             || feet.getY() >= level.getMaxBuildHeight() - 1) {
             return false;
         }
@@ -71,8 +68,10 @@ public final class SpawnSafety {
         int worldZ = fallbackChunkZ * 16 + 8;
         int floorY = level.getSeaLevel() + 1;
 
-        level.getChunk(0, fallbackChunkZ, ChunkStatus.FULL, true);
-        for (int x = 6; x <= 9; x++) {
+        int thickness = WorldSliceBounds.thickness(level);
+        int centerX = WorldSliceBounds.centerX(thickness);
+        level.getChunk(Math.floorDiv(centerX, 16), fallbackChunkZ, ChunkStatus.FULL, true);
+        for (int x = WorldSliceBounds.minX(); x <= WorldSliceBounds.maxX(thickness); x++) {
             for (int z = worldZ - 1; z <= worldZ + 1; z++) {
                 level.setBlock(new BlockPos(x, floorY, z), Blocks.STONE.defaultBlockState(), 3);
                 level.setBlock(new BlockPos(x, floorY + 1, z), Blocks.AIR.defaultBlockState(), 3);
@@ -80,7 +79,7 @@ public final class SpawnSafety {
             }
         }
 
-        BlockPos spawn = new BlockPos(7, floorY + 1, worldZ);
+        BlockPos spawn = new BlockPos(centerX, floorY + 1, worldZ);
         return isSafeSpawnPosition(level, spawn) ? spawn : null;
     }
 
@@ -130,17 +129,28 @@ public final class SpawnSafety {
         private final ServerLevel level;
         private final int originZ;
         private final int originChunkZ;
+        private final int thickness;
+        private final int[] preferredX;
+        private final int minChunkX;
+        private final int maxChunkX;
 
         private Candidate bestCandidate;
         private int radiusIndex;
         private int offsetIndex;
+        private Integer currentChunkZ;
+        private int nextChunkX;
         private int previousRadius = -1;
         private boolean complete;
 
-        private Search(ServerLevel level, int originZ) {
+        private Search(ServerLevel level, int originZ, int thickness) {
             this.level = level;
             this.originZ = originZ;
             this.originChunkZ = Math.floorDiv(originZ, 16);
+            this.thickness = WorldSliceWorldSettings.sanitize(thickness);
+            this.preferredX = preferredColumns(this.thickness);
+            this.minChunkX = Math.floorDiv(WorldSliceBounds.minX(), 16);
+            this.maxChunkX = Math.floorDiv(WorldSliceBounds.maxX(this.thickness), 16);
+            this.nextChunkX = this.minChunkX;
         }
 
         /** Advances at most {@code maxChunks} chunk generations. */
@@ -151,15 +161,23 @@ public final class SpawnSafety {
 
             int processed = 0;
             while (!complete && processed < maxChunks) {
-                Integer chunkZ = nextChunkZ();
-                if (chunkZ == null) {
-                    continue;
+                if (currentChunkZ == null) {
+                    currentChunkZ = nextChunkZ();
+                    nextChunkX = minChunkX;
+                    if (currentChunkZ == null) {
+                        continue;
+                    }
                 }
 
-                // Only chunk X=0 is requested. The chunk is generated once,
-                // then several local columns are checked for a safe surface.
-                ChunkAccess chunk = level.getChunk(0, chunkZ, ChunkStatus.FULL, true);
-                inspectChunk(chunk, chunkZ);
+                // Generate only chunks that intersect the configured slice.
+                // A width greater than one chunk may need the final partial
+                // boundary chunk as well as the first chunk column.
+                ChunkAccess chunk = level.getChunk(nextChunkX, currentChunkZ, ChunkStatus.FULL, true);
+                inspectChunk(chunk, currentChunkZ);
+                nextChunkX++;
+                if (nextChunkX > maxChunkX) {
+                    currentChunkZ = null;
+                }
                 processed++;
             }
         }
@@ -209,20 +227,26 @@ public final class SpawnSafety {
             int maxY = level.getMaxBuildHeight() - 2;
             int localZCentre = chunkZ == originChunkZ ? Math.floorMod(originZ, 16) : 8;
 
-            for (int x : PREFERRED_X) {
+            int chunkMinX = chunk.getPos().getMinBlockX();
+            int chunkMaxX = chunkMinX + 15;
+            for (int x : preferredX) {
+                if (x < chunkMinX || x > chunkMaxX) {
+                    continue;
+                }
+
                 // Local Z is searched within the already selected chunk, in
                 // origin-centred order. Chunk selection, not block walking,
                 // is the unit that controls world generation cost.
                 for (int distance = 0; distance < 16; distance++) {
                     int plus = localZCentre + distance;
                     if (plus < 16) {
-                        inspectColumn(chunk, x, plus, minY, maxY);
+                        inspectColumn(chunk, x - chunkMinX, plus, minY, maxY);
                     }
 
                     if (distance != 0) {
                         int minus = localZCentre - distance;
                         if (minus >= 0) {
-                            inspectColumn(chunk, x, minus, minY, maxY);
+                            inspectColumn(chunk, x - chunkMinX, minus, minY, maxY);
                         }
                     }
                 }
@@ -239,7 +263,8 @@ public final class SpawnSafety {
             }
 
             int worldZ = chunk.getPos().getMinBlockZ() + localZ;
-            BlockPos feet = new BlockPos(x, surfaceY + 1, worldZ);
+            int worldX = chunk.getPos().getMinBlockX() + x;
+            BlockPos feet = new BlockPos(worldX, surfaceY + 1, worldZ);
 
             if (!isSafeSpawnPosition(level, feet)) {
                 return;
@@ -247,7 +272,7 @@ public final class SpawnSafety {
 
             Holder<Biome> biome = level.getBiome(feet.below());
             Candidate candidate = new Candidate(feet, biomeRank(biome), biomeName(biome), biome);
-            if (bestCandidate == null || candidate.isPreferredTo(bestCandidate, originZ)) {
+            if (bestCandidate == null || candidate.isPreferredTo(bestCandidate, originZ, WorldSliceBounds.centerX(thickness))) {
                 bestCandidate = candidate;
             }
         }
@@ -260,10 +285,34 @@ public final class SpawnSafety {
             int distance = (index + 1) / 2;
             return (index & 1) == 1 ? distance : -distance;
         }
+
+        private static int[] preferredColumns(int thickness) {
+            int[] columns = new int[thickness];
+            int centerLeft = (thickness - 1) / 2;
+            int centerRight = thickness / 2;
+            int index = 0;
+            columns[index++] = centerLeft;
+            if (centerRight != centerLeft) {
+                columns[index++] = centerRight;
+            }
+
+            for (int distance = 1; index < thickness; distance++) {
+                int left = centerLeft - distance;
+                if (left >= 0) {
+                    columns[index++] = left;
+                }
+
+                int right = centerRight + distance;
+                if (right < thickness && index < thickness) {
+                    columns[index++] = right;
+                }
+            }
+            return columns;
+        }
     }
 
     private record Candidate(BlockPos position, int rank, String biome, Holder<Biome> biomeHolder) {
-        private boolean isPreferredTo(Candidate other, int originZ) {
+        private boolean isPreferredTo(Candidate other, int originZ, int centerX) {
             if (rank != other.rank) {
                 return rank > other.rank;
             }
@@ -274,7 +323,7 @@ public final class SpawnSafety {
                 return distance < otherDistance;
             }
 
-            return Math.abs(position.getX() - 7) < Math.abs(other.position.getX() - 7);
+            return Math.abs(position.getX() - centerX) < Math.abs(other.position.getX() - centerX);
         }
     }
 }

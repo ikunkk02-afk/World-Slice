@@ -13,7 +13,7 @@ public abstract class WorldGenRegionMixin {
     @Inject(method = "ensureCanWrite", at = @At("HEAD"), cancellable = true)
     private void worldslice$rejectOutsideGeneration(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
         WorldGenRegion region = (WorldGenRegion) (Object) this;
-        if (WorldSliceBounds.isWorldSliceLevel(region.getLevel()) && !WorldSliceBounds.isInside(pos)) {
+        if (WorldSliceBounds.isWorldSliceLevel(region.getLevel()) && !WorldSliceBounds.isInside(region.getLevel(), pos)) {
             cir.setReturnValue(false);
         }
     }

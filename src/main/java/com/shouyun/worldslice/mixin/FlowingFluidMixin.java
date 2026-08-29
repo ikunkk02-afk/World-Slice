@@ -27,7 +27,7 @@ public abstract class FlowingFluidMixin {
         Fluid fluid,
         CallbackInfoReturnable<Boolean> cir
     ) {
-        if (WorldSliceBounds.isWorldSliceLevel(level) && !WorldSliceBounds.canFluidEnter(toPos)) {
+        if (WorldSliceBounds.isWorldSliceLevel(level) && !WorldSliceBounds.canFluidEnter(level, toPos)) {
             cir.setReturnValue(false);
         }
     }
