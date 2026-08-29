@@ -13,7 +13,8 @@
   "client": [
     "CameraMixin",
     "MouseHandlerMixin",
-    "KeyboardInputMixin"
+    "KeyboardInputMixin",
+    "SoundEngineMixin"
   ],
   "injectors": {
     "defaultRequire": 1
