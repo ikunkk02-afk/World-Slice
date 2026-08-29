@@ -6,9 +6,12 @@ World Slice reinterprets the Minecraft world as a narrow, vertical cross-section
 
 <div align="center">
 
-| Minecraft | Loader | Java | License |
-|:---------:|:------:|:----:|:-------:|
-| 1.21.1 | NeoForge 21.1.x | 21 | MIT |
+[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.1-62B47A?style=for-the-badge)](https://www.minecraft.net/)
+[![NeoForge](https://img.shields.io/badge/NeoForge-21.1.249-f16436?style=for-the-badge)](https://neoforged.net/)
+[![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge)](https://adoptium.net/)
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+
+**English** · [简体中文](README.zh-CN.md)
 
 </div>
 
