@@ -9,6 +9,7 @@ authors="World Slice contributors"
 modId="${mod_id}"
 version="${mod_version}"
 displayName="${mod_name}"
+logoFile="icon.png"
 description='''
 World Slice turns Minecraft into a configurable, block-accurate world slice, preserving the vertical depth of vanilla terrain while allowing the world to extend infinitely sideways.
 '''
