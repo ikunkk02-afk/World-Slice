@@ -89,6 +89,10 @@ public final class WorldSliceServerEvents {
     /**
      * Safety net for commands, portals and other direct teleports. Normal
      * movement is handled by Entity's collision pipeline, not by this check.
+     *
+     * <p>This deliberately stays player-only: ordinary mobs are contained by
+     * the vanilla collision wall, and the Ender Dragon is never clamped. No
+     * per-tick scan over all living entities is performed.</p>
      */
     private static void enforcePlayerBoundarySafety(ServerLevel level) {
         if (!WorldSliceBounds.isWorldSliceLevel(level)) {
@@ -96,7 +100,7 @@ public final class WorldSliceServerEvents {
         }
 
         for (ServerPlayer player : level.players()) {
-            if (!WorldSliceBounds.affectsPlayerCollision(player, level)
+            if (!WorldSliceBounds.affectsBoundaryCollision(player, level)
                 || WorldSliceBounds.isPlayerInside(player)) {
                 continue;
             }

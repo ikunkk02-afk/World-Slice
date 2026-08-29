@@ -9,7 +9,7 @@ World Slice turns Minecraft into a configurable, block-accurate world slice, pre
 - Vanilla terrain, biomes, caves, aquifers, ores, vegetation and structures in the playable slice
 - Visible vertical terrain layers and underground caves
 - Virtual fluid boundary for water, lava and other `FlowingFluid` implementations
-- Invisible player collision walls at the two outside faces of the slice
+- Invisible entity collision walls at the two outside faces of the slice (players and mobs; the Ender Dragon passes through)
 - Terraria-style side camera with smooth entity interpolation
 - NeoForge 1.21.1 support
 
@@ -49,7 +49,7 @@ World Slice wraps the existing Overworld, Nether and End `ChunkGenerator` instan
 
 The block, fluid and generation boundary is centralized in `WorldSliceBounds`. It distinguishes block bounds, chunk intersection, full containment and partial boundary chunks. Outside the slice, reads expose void/empty fluid and writes are rejected before an out-of-bounds chunk is loaded. The fluid guard is applied at `FlowingFluid.canSpreadTo`, so it also covers fluids implemented through the vanilla flowing-fluid hierarchy.
 
-Player movement uses a separate virtual boundary. `EntityMixin` injects at the return of Minecraft 1.21.1's `Entity.collectColliders` and adds two finite-Z `VoxelShape` AABBs at the outside faces of the slice, spanning the level build height. Vanilla collision resolution therefore removes only the blocked X component while preserving Z movement, jumping, falling, swimming and flying behavior. The shapes are created only for non-spectator players in a sliced dimension; mobs, animals, items, projectiles and vehicles never receive the collision shapes and pass through the boundary (any mob that stops near the edge is using vanilla cliff/void pathfinding, not the invisible wall). No barrier blocks, saved entities or persistent wall chunks are created.
+Entity movement uses a separate virtual boundary. `EntityMixin` injects at the return of Minecraft 1.21.1's `Entity.collectColliders` and adds two finite-Z `VoxelShape` AABBs at the outside faces of the slice, spanning the level build height. Vanilla collision resolution therefore removes only the blocked X component while preserving Z movement, jumping, falling, swimming and flying behavior. The shapes are created for non-spectator players and every ordinary living entity (mobs, animals, villagers, golems and bosses such as the Wither); the Ender Dragon is explicitly excluded so its vanilla fight can fly through the full 3D arena, while items, experience orbs, projectiles, boats and minecarts pass through the boundary. No barrier blocks, saved entities or persistent wall chunks are created.
 
 The server also performs a low-frequency safety check for `ServerPlayer` instances in every sliced dimension. It clamps direct teleports, portals and other out-of-band position changes back inside the player bounding-box interval; ordinary movement is never implemented as a tick teleport. Spectators retain their normal no-clip behavior. The fluid boundary remains independent and continues to protect water and lava.
 

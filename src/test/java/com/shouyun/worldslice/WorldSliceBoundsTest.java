@@ -40,7 +40,7 @@ class WorldSliceBoundsTest {
 
     @Test
     void virtualWallsAreFiniteInZAndCoverBuildHeight() {
-        List<VoxelShape> walls = WorldSliceBounds.addPlayerCollisionWalls(
+        List<VoxelShape> walls = WorldSliceBounds.addBoundaryCollisionWalls(
             List.of(),
             new AABB(-2.0D, 0.0D, -4.0D, 18.0D, 2.0D, 6.0D),
             -64,

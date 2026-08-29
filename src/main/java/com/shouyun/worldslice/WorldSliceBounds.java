@@ -11,7 +11,8 @@ import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -324,7 +325,7 @@ public final class WorldSliceBounds {
     }
 
     // ---------------------------------------------------------------------
-    // Player collision walls
+    // Entity boundary collision (players and living entities)
     // ---------------------------------------------------------------------
 
     /** The left virtual collision plane, at the outside face of the slice's first column. */
@@ -353,7 +354,7 @@ public final class WorldSliceBounds {
         return forDimension(dimension, worldThickness).maxX() + 1.0D;
     }
 
-    /** Returns whether an entity's complete bounding box is inside the player collision interval. */
+    /** Returns whether an entity's complete bounding box is inside the entity boundary interval. */
     public static boolean isPlayerInside(Entity entity) {
         return isPlayerInside(entity, entity.level());
     }
@@ -400,18 +401,36 @@ public final class WorldSliceBounds {
         return Math.max(min, Math.min(max, x));
     }
 
-    /** Whether this entity should receive the virtual player walls. */
-    public static boolean affectsPlayerCollision(Entity entity, Level level) {
-        return entity instanceof Player
-            && !entity.isSpectator()
-            && isWorldSliceLevel(level);
+    /**
+     * Whether this entity should receive the virtual World Slice boundary walls.
+     *
+     * <p>The boundary protects players and every ordinary living entity (mobs,
+     * animals, villagers, golems and other bosses), but explicitly lets the
+     * Ender Dragon pass so its vanilla fight can fly through the full 3D
+     * arena. Non-living entities (items, experience orbs, projectiles, boats,
+     * minecarts, End Crystals, ...) never receive the shapes.</p>
+     */
+    public static boolean affectsBoundaryCollision(Entity entity, Level level) {
+        if (entity == null || !isWorldSliceLevel(level)) {
+            return false;
+        }
+        if (entity.isSpectator()) {
+            return false;
+        }
+        // The dragon needs the full 3D space for its fight; never constrain it.
+        if (entity instanceof EnderDragon) {
+            return false;
+        }
+        // Player extends LivingEntity, so this single check covers players,
+        // mobs, animals, villagers, golems and bosses such as the Wither.
+        return entity instanceof LivingEntity;
     }
 
     /** Adds two finite-Z virtual side walls to an existing collision result. */
-    public static List<VoxelShape> addPlayerCollisionWalls(
+    public static List<VoxelShape> addBoundaryCollisionWalls(
         List<VoxelShape> collisions, Level level, AABB collisionQuery
     ) {
-        return addPlayerCollisionWalls(
+        return addBoundaryCollisionWalls(
             collisions,
             collisionQuery,
             level.getMinBuildHeight(),
@@ -422,10 +441,10 @@ public final class WorldSliceBounds {
     }
 
     /** Context-free (Overworld) helper retained for unit tests. */
-    static List<VoxelShape> addPlayerCollisionWalls(
+    static List<VoxelShape> addBoundaryCollisionWalls(
         List<VoxelShape> collisions, AABB collisionQuery, int minBuildHeight, int maxBuildHeight
     ) {
-        return addPlayerCollisionWalls(
+        return addBoundaryCollisionWalls(
             collisions,
             collisionQuery,
             minBuildHeight,
@@ -435,7 +454,7 @@ public final class WorldSliceBounds {
         );
     }
 
-    private static List<VoxelShape> addPlayerCollisionWalls(
+    private static List<VoxelShape> addBoundaryCollisionWalls(
         List<VoxelShape> collisions,
         AABB collisionQuery,
         int minBuildHeight,
