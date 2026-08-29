@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SideAimMathTest {
     @Test
-    void screenRightAndUpKeepCameraDepthComponent() {
+    void screenRightAndUpMapToTheSidePlane() {
         SideAimMath.ScreenPosition player = new SideAimMath.ScreenPosition(960.0D, 540.0D, 28.0D);
         Vec3 direction = SideAimMath.directionFromScreen(
             1200.0D,
@@ -21,53 +21,18 @@ class SideAimMathTest {
             1080.0D,
             30.0D,
             1920.0D / 1080.0D,
-            new Vec3(1.0D, 0.0D, 0.0D),
             new Vec3(0.0D, 0.0D, 1.0D),
             new Vec3(0.0D, 1.0D, 0.0D)
         );
 
         assertNotNull(direction);
-        assertTrue(direction.x > 0.0D);
+        assertEquals(0.0D, direction.x, 1.0E-9D);
         assertEquals(1.0D, direction.z > 0.0D ? 1.0D : -1.0D, 1.0D);
         assertEquals(1.0D, direction.y > 0.0D ? 1.0D : -1.0D, 1.0D);
     }
 
     @Test
-    void screenCenterCanAimAtEitherDepthSide() {
-        SideAimMath.ScreenPosition player = new SideAimMath.ScreenPosition(960.0D, 540.0D, 28.0D);
-        Vec3 towardPositiveDepth = SideAimMath.directionFromScreen(
-            960.0D,
-            540.0D,
-            player,
-            1920.0D,
-            1080.0D,
-            30.0D,
-            1920.0D / 1080.0D,
-            new Vec3(1.0D, 0.0D, 0.0D),
-            new Vec3(0.0D, 0.0D, 1.0D),
-            new Vec3(0.0D, 1.0D, 0.0D)
-        );
-        Vec3 towardNegativeDepth = SideAimMath.directionFromScreen(
-            960.0D,
-            540.0D,
-            player,
-            1920.0D,
-            1080.0D,
-            30.0D,
-            1920.0D / 1080.0D,
-            new Vec3(-1.0D, 0.0D, 0.0D),
-            new Vec3(0.0D, 0.0D, 1.0D),
-            new Vec3(0.0D, 1.0D, 0.0D)
-        );
-
-        assertNotNull(towardPositiveDepth);
-        assertNotNull(towardNegativeDepth);
-        assertTrue(towardPositiveDepth.x > 0.0D);
-        assertTrue(towardNegativeDepth.x < 0.0D);
-    }
-
-    @Test
-    void zeroDirectionDoesNotProduceInvalidAim() {
+    void zeroScreenDeltaKeepsThePreviousDirection() {
         SideAimMath.ScreenPosition player = new SideAimMath.ScreenPosition(1280.0D, 800.0D, 28.0D);
         Vec3 direction = SideAimMath.directionFromScreen(
             1280.0D,
@@ -77,7 +42,6 @@ class SideAimMathTest {
             1600.0D,
             30.0D,
             2560.0D / 1600.0D,
-            Vec3.ZERO,
             new Vec3(0.0D, 0.0D, 1.0D),
             new Vec3(0.0D, 1.0D, 0.0D)
         );

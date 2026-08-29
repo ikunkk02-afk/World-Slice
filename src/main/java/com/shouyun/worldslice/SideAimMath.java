@@ -8,16 +8,18 @@ public final class SideAimMath {
     private SideAimMath() {
     }
 
-    public static Vec3 normalizeOrFallback(Vec3 direction, Vec3 fallback) {
-        if (direction.lengthSqr() > SideCameraConfig.AIM_EPSILON * SideCameraConfig.AIM_EPSILON) {
-            return direction.normalize();
+    public static Vec3 flattenToSidePlane(Vec3 direction, Vec3 fallback) {
+        Vec3 flattened = new Vec3(0.0D, direction.y, direction.z);
+        if (flattened.lengthSqr() > SideCameraConfig.AIM_EPSILON * SideCameraConfig.AIM_EPSILON) {
+            return flattened.normalize();
         }
 
-        if (fallback.lengthSqr() > SideCameraConfig.AIM_EPSILON * SideCameraConfig.AIM_EPSILON) {
-            return fallback.normalize();
+        Vec3 fallbackFlattened = new Vec3(0.0D, fallback.y, fallback.z);
+        if (fallbackFlattened.lengthSqr() > SideCameraConfig.AIM_EPSILON * SideCameraConfig.AIM_EPSILON) {
+            return fallbackFlattened.normalize();
         }
 
-        return new Vec3(1.0D, 0.0D, 0.0D);
+        return new Vec3(0.0D, 0.0D, 1.0D);
     }
 
     public static ScreenPosition projectPoint(
@@ -62,7 +64,6 @@ public final class SideAimMath {
         double screenHeight,
         double verticalFovDegrees,
         double aspectRatio,
-        Vec3 cameraForward,
         Vec3 screenRight,
         Vec3 screenUp
     ) {
@@ -76,14 +77,13 @@ public final class SideAimMath {
         double verticalSlope = (playerPosition.y() - crosshairY) / screenHeight
             * 2.0D * halfVerticalFovTangent;
 
-        Vec3 direction = cameraForward
-            .add(screenRight.scale(horizontalSlope))
-            .add(screenUp.scale(verticalSlope));
-        if (direction.lengthSqr() <= SideCameraConfig.AIM_EPSILON * SideCameraConfig.AIM_EPSILON) {
+        Vec3 direction = screenRight.scale(horizontalSlope).add(screenUp.scale(verticalSlope));
+        Vec3 sidePlaneDirection = new Vec3(0.0D, direction.y, direction.z);
+        if (sidePlaneDirection.lengthSqr() <= SideCameraConfig.AIM_EPSILON * SideCameraConfig.AIM_EPSILON) {
             return null;
         }
 
-        return direction.normalize();
+        return sidePlaneDirection.normalize();
     }
 
     public static float yawFor(Vec3 direction, float fallbackYaw) {
