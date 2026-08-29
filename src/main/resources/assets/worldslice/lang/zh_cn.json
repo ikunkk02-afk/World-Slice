@@ -1,0 +1,17 @@
+{
+  "key.categories.worldslice": "世界切片",
+  "key.worldslice.side_camera": "切换侧面视角",
+  "key.worldslice.settings": "世界切片设置",
+  "screen.worldslice.title": "世界切片设置",
+  "worldslice.screen.pause_button": "世界切片设置",
+  "worldslice.screen.syncing": "正在同步…",
+  "worldslice.screen.world": "世界",
+  "worldslice.screen.world_thickness": "世界厚度",
+  "worldslice.screen.world_thickness_hint": "控制可玩区域的 X 轴宽度。范围：1-4096 格。",
+  "worldslice.screen.chunk_summary": "%s 格 / %s 区块",
+  "worldslice.screen.server_only": "只有服务器管理员可以修改此设置。",
+  "worldslice.screen.camera": "侧面视角",
+  "worldslice.screen.camera_distance_label": "视角距离",
+  "worldslice.screen.camera_distance": "视角距离：%s 格",
+  "worldslice.screen.invalid_thickness": "请输入 %s 到 %s 格之间的整数。"
+}
