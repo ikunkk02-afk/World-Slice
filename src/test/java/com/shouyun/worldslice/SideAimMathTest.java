@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SideAimMathTest {
     @Test
@@ -53,6 +55,9 @@ class SideAimMathTest {
         assertEquals(-1.0F, SideMovementController.calculateImpulse(false, true));
         assertEquals(0.0F, SideMovementController.calculateImpulse(true, true));
         assertEquals(0.0F, SideMovementController.calculateImpulse(false, false));
+        assertTrue(SideMovementController.isFacingRight(0.0F));
+        assertFalse(SideMovementController.isFacingRight(180.0F));
+        assertFalse(SideMovementController.isFacingRight(-180.0F));
     }
 
     @Test

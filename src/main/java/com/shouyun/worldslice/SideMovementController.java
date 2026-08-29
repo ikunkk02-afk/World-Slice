@@ -13,9 +13,10 @@ public final class SideMovementController {
         Minecraft minecraft = Minecraft.getInstance();
         long window = minecraft.getWindow().getWindow();
 
-        // Side Camera layout: D/A are forward/back and W/S are left/right.
-        boolean forward = isKeyDown(window, InputConstants.KEY_D);
-        boolean backward = isKeyDown(window, InputConstants.KEY_A);
+        // Keep D/A screen-relative: when the player turns left, forward/backward must be swapped.
+        boolean facingRight = minecraft.player == null || isFacingRight(minecraft.player.getYRot());
+        boolean forward = isKeyDown(window, facingRight ? InputConstants.KEY_D : InputConstants.KEY_A);
+        boolean backward = isKeyDown(window, facingRight ? InputConstants.KEY_A : InputConstants.KEY_D);
         boolean left = isKeyDown(window, InputConstants.KEY_W);
         boolean right = isKeyDown(window, InputConstants.KEY_S);
 
@@ -37,6 +38,11 @@ public final class SideMovementController {
             return 0.0F;
         }
         return positive ? 1.0F : -1.0F;
+    }
+
+    static boolean isFacingRight(float yaw) {
+        // In Minecraft yaw 0 faces +Z (the right side of the fixed Side Camera view).
+        return Math.cos(Math.toRadians(yaw)) >= 0.0D;
     }
 
     private static boolean isKeyDown(long window, int key) {
