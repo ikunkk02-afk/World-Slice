@@ -48,6 +48,14 @@ class SideAimMathTest {
     }
 
     @Test
+    void sideMovementUsesOppositeKeysWithoutDiagonalBias() {
+        assertEquals(1.0F, SideMovementController.calculateImpulse(true, false));
+        assertEquals(-1.0F, SideMovementController.calculateImpulse(false, true));
+        assertEquals(0.0F, SideMovementController.calculateImpulse(true, true));
+        assertEquals(0.0F, SideMovementController.calculateImpulse(false, false));
+    }
+
+    @Test
     void projectionUsesTheViewportAspectRatio() {
         SideAimMath.ScreenPosition widescreen = SideAimMath.projectPoint(
             new Vec3(28.0D, 0.0D, 1.0D),

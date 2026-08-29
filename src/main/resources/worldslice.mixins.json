@@ -12,7 +12,8 @@
   ],
   "client": [
     "CameraMixin",
-    "MouseHandlerMixin"
+    "MouseHandlerMixin",
+    "KeyboardInputMixin"
   ],
   "injectors": {
     "defaultRequire": 1
