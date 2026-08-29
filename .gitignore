@@ -1,0 +1,10 @@
+.gradle/
+build/
+run/
+logs/
+crash-reports/
+.idea/
+*.iml
+out/
+repo/
+src/generated/
