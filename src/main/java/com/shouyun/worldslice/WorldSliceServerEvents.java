@@ -77,7 +77,11 @@ public final class WorldSliceServerEvents {
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
         if (event.getServer().getTickCount() % PLAYER_BOUNDARY_SAFETY_INTERVAL_TICKS == 0) {
-            enforcePlayerBoundarySafety(event.getServer().overworld());
+            for (ServerLevel level : event.getServer().getAllLevels()) {
+                if (WorldSliceBounds.isWorldSliceLevel(level)) {
+                    enforcePlayerBoundarySafety(level);
+                }
+            }
         }
         advanceSpawnSearch(event.getServer(), SpawnSafety.CHUNKS_PER_TICK);
     }

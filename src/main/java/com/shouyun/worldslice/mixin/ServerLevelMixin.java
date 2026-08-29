@@ -2,13 +2,13 @@ package com.shouyun.worldslice.mixin;
 
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArgs;
 import org.spongepowered.asm.mixin.injection.invoke.arg.Args;
 
+import com.shouyun.worldslice.WorldSliceBounds;
 import com.shouyun.worldslice.WorldSliceChunkGenerator;
 import com.shouyun.worldslice.WorldSliceGenerator;
 
@@ -21,7 +21,7 @@ public abstract class ServerLevelMixin {
     private static void worldslice$wrapGenerator(Args args) {
         ServerLevel level = args.get(0);
         ChunkGenerator generator = args.get(5);
-        if (level.dimension().equals(Level.OVERWORLD) && !(generator instanceof WorldSliceGenerator)) {
+        if (WorldSliceBounds.isSupportedDimension(level.dimension()) && !(generator instanceof WorldSliceGenerator)) {
             args.set(5, WorldSliceChunkGenerator.wrap(generator, level));
         }
     }

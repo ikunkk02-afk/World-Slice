@@ -36,8 +36,7 @@ public final class WorldSliceNetworking {
 
         context.enqueueWork(() -> {
             if (!(player.level() instanceof ServerLevel level)
-                || !WorldSliceBounds.isWorldSliceLevel(level)
-                || !level.dimension().equals(net.minecraft.world.level.Level.OVERWORLD)) {
+                || !WorldSliceBounds.isWorldSliceLevel(level)) {
                 return;
             }
 
@@ -57,7 +56,7 @@ public final class WorldSliceNetworking {
             }
 
             settings.setWorldThickness(payload.requestedThickness());
-            level.getDataStorage().save();
+            WorldSliceWorldSettings.getStorageLevel(level).getDataStorage().save();
             PacketDistributor.sendToAllPlayers(new WorldSliceSettingsSyncPayload(settings.worldThickness()));
         });
     }

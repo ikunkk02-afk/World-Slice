@@ -22,6 +22,7 @@ public final class WorldSliceConfigScreen extends Screen {
     private Button doneButton;
     private int serverWorldThickness;
     private boolean worldThicknessDirty;
+    private boolean syncing;
     private boolean updatingWorldThicknessBox;
     private String validationMessage;
     private long serverSettingsRevision;
@@ -31,6 +32,7 @@ public final class WorldSliceConfigScreen extends Screen {
         this.parent = parent;
         this.serverWorldThickness = WorldSliceWorldSettings.clientWorldThickness();
         this.serverSettingsRevision = WorldSliceWorldSettings.clientSettingsRevision();
+        this.syncing = !WorldSliceWorldSettings.isClientWorldSliceActive();
         this.worldThicknessEditable = canEditWorldThickness();
         SideCameraConfig.beginPreview();
     }
@@ -59,7 +61,7 @@ public final class WorldSliceConfigScreen extends Screen {
         this.worldThicknessBox.setFilter(value -> value.isEmpty()
             || value.chars().allMatch(character -> character >= '0' && character <= '9'));
         this.worldThicknessBox.setValue(Integer.toString(this.serverWorldThickness));
-        this.worldThicknessBox.setEditable(this.worldThicknessEditable);
+        this.worldThicknessBox.setEditable(this.worldThicknessEditable && !this.syncing);
         this.worldThicknessBox.setResponder(value -> {
             if (!this.updatingWorldThicknessBox) {
                 this.worldThicknessDirty = true;
@@ -92,7 +94,9 @@ public final class WorldSliceConfigScreen extends Screen {
         long revision = WorldSliceWorldSettings.clientSettingsRevision();
         if (revision != this.serverSettingsRevision) {
             this.serverSettingsRevision = revision;
+            this.syncing = false;
             this.serverWorldThickness = WorldSliceWorldSettings.clientWorldThickness();
+            this.worldThicknessBox.setEditable(this.worldThicknessEditable);
             if (!this.worldThicknessDirty) {
                 setWorldThicknessBox(this.serverWorldThickness);
             }
@@ -132,7 +136,7 @@ public final class WorldSliceConfigScreen extends Screen {
         }
 
         SideCameraConfig.commitPreview(this.cameraDistanceSlider.distance());
-        if (this.worldThicknessEditable && this.minecraft.getConnection() != null) {
+        if (this.worldThicknessEditable && this.worldThicknessDirty && this.minecraft.getConnection() != null) {
             PacketDistributor.sendToServer(new WorldSliceSettingsRequestPayload(thickness, true));
         }
         closeScreen();
@@ -166,24 +170,34 @@ public final class WorldSliceConfigScreen extends Screen {
 
         Integer thickness = parseWorldThickness();
         int displayedThickness = thickness == null ? this.serverWorldThickness : thickness;
-        guiGraphics.drawCenteredString(
-            this.font,
-            Component.translatable(
-                "worldslice.screen.chunk_summary",
-                displayedThickness,
-                WorldSliceBounds.chunkWidth(displayedThickness)
-            ),
-            center,
-            top + 66,
-            0xA0A0A0
-        );
-        guiGraphics.drawCenteredString(
-            this.font,
-            Component.translatable("worldslice.screen.world_thickness_hint"),
-            center,
-            top + 82,
-            0x808080
-        );
+        if (this.syncing) {
+            guiGraphics.drawCenteredString(
+                this.font,
+                Component.translatable("worldslice.screen.syncing"),
+                center,
+                top + 66,
+                0xA0A0A0
+            );
+        } else {
+            guiGraphics.drawCenteredString(
+                this.font,
+                Component.translatable(
+                    "worldslice.screen.chunk_summary",
+                    displayedThickness,
+                    WorldSliceBounds.chunkWidth(displayedThickness)
+                ),
+                center,
+                top + 66,
+                0xA0A0A0
+            );
+            guiGraphics.drawCenteredString(
+                this.font,
+                Component.translatable("worldslice.screen.world_thickness_hint"),
+                center,
+                top + 82,
+                0x808080
+            );
+        }
 
         if (!this.worldThicknessEditable) {
             guiGraphics.drawCenteredString(

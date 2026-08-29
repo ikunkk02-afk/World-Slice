@@ -3,6 +3,8 @@
   "key.worldslice.side_camera": "Toggle Side Camera",
   "key.worldslice.settings": "World Slice Settings",
   "screen.worldslice.title": "World Slice Settings",
+  "worldslice.screen.pause_button": "World Slice Settings",
+  "worldslice.screen.syncing": "Syncing...",
   "worldslice.screen.world": "World",
   "worldslice.screen.world_thickness": "World Thickness",
   "worldslice.screen.world_thickness_hint": "Controls the playable X-axis width. Range: 1-4096 blocks.",

@@ -8,6 +8,7 @@ import java.util.List;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.junit.jupiter.api.Test;
@@ -92,5 +93,21 @@ class WorldSliceBoundsTest {
             assertEquals(thickness % 16 != 0,
                 WorldSliceBounds.isPartialBoundaryChunk(new ChunkPos(lastChunk, 0), thickness));
         }
+    }
+
+    @Test
+    void clampBlockXStaysInsideTheSlice() {
+        assertEquals(0, WorldSliceBounds.clampBlockX(-5, 16));
+        assertEquals(15, WorldSliceBounds.clampBlockX(100, 16));
+        assertEquals(7, WorldSliceBounds.clampBlockX(7, 16));
+        assertEquals(0, WorldSliceBounds.clampBlockX(0, 1));
+        assertEquals(0, WorldSliceBounds.clampBlockX(56, 1));
+    }
+
+    @Test
+    void supportedDimensionsCoverTheThreeVanillaDimensions() {
+        assertTrue(WorldSliceBounds.isSupportedDimension(Level.OVERWORLD));
+        assertTrue(WorldSliceBounds.isSupportedDimension(Level.NETHER));
+        assertTrue(WorldSliceBounds.isSupportedDimension(Level.END));
     }
 }

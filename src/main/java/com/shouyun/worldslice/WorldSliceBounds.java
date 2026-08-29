@@ -2,9 +2,11 @@ package com.shouyun.worldslice;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
@@ -27,7 +29,23 @@ public final class WorldSliceBounds {
     private static final double PLAYER_SAFETY_EPSILON = 1.0E-4D;
     private static final double COLLISION_QUERY_MARGIN = 1.0D;
 
+    /** The vanilla dimensions World Slice wraps. */
+    private static final Set<ResourceKey<Level>> SUPPORTED_DIMENSIONS = Set.of(
+        Level.OVERWORLD,
+        Level.NETHER,
+        Level.END
+    );
+
     private WorldSliceBounds() {
+    }
+
+    /**
+     * Whether World Slice should wrap this dimension's generator. Kept as the
+     * single place that knows which vanilla dimensions are eligible; runtime
+     * wrapping is still decided by the actual generator type.
+     */
+    public static boolean isSupportedDimension(ResourceKey<Level> dimension) {
+        return SUPPORTED_DIMENSIONS.contains(dimension);
     }
 
     /** Default, context-free view retained for unit tests and old callers. */
@@ -111,10 +129,6 @@ public final class WorldSliceBounds {
     }
 
     public static boolean isWorldSliceLevel(Level level) {
-        if (!level.dimension().equals(Level.OVERWORLD)) {
-            return false;
-        }
-
         if (level.isClientSide) {
             return WorldSliceWorldSettings.isClientWorldSliceActive();
         }
@@ -176,6 +190,19 @@ public final class WorldSliceBounds {
 
     public static int centerX(int worldThickness) {
         return (WorldSliceWorldSettings.sanitize(worldThickness) - 1) / 2;
+    }
+
+    public static int centerX(Level level) {
+        return centerX(thickness(level));
+    }
+
+    /** Clamps a block X coordinate into the playable slice columns. */
+    public static int clampBlockX(int x, int worldThickness) {
+        return Math.max(MIN_X, Math.min(maxX(worldThickness), x));
+    }
+
+    public static int clampBlockX(Level level, int x) {
+        return clampBlockX(x, thickness(level));
     }
 
     /**

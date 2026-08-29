@@ -39,14 +39,19 @@ public final class WorldSliceWorldSettings extends SavedData {
         setDirty();
     }
 
-    public static WorldSliceWorldSettings get(ServerLevel level) {
-        // Always bind this setting to the Overworld save, even if a future
-        // caller reaches this helper while handling another dimension.
+    /** Resolves the Overworld level that owns the shared World Slice settings. */
+    public static ServerLevel getStorageLevel(ServerLevel level) {
         ServerLevel storageLevel = level;
         if (!level.dimension().equals(Level.OVERWORLD) && level.getServer().overworld() != null) {
             storageLevel = level.getServer().overworld();
         }
-        return storageLevel.getDataStorage().computeIfAbsent(FACTORY, FILE_ID);
+        return storageLevel;
+    }
+
+    public static WorldSliceWorldSettings get(ServerLevel level) {
+        // Always bind this setting to the Overworld save, even if a future
+        // caller reaches this helper while handling another dimension.
+        return getStorageLevel(level).getDataStorage().computeIfAbsent(FACTORY, FILE_ID);
     }
 
     private static WorldSliceWorldSettings load(CompoundTag tag, HolderLookup.Provider registries) {

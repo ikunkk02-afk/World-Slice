@@ -4,9 +4,12 @@
   "package": "com.shouyun.worldslice.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "EndGatewayBlockMixin",
+    "EndPortalBlockMixin",
     "EntityMixin",
     "FlowingFluidMixin",
     "LevelMixin",
+    "NetherPortalBlockMixin",
     "ServerLevelMixin",
     "WorldGenRegionMixin"
   ],
