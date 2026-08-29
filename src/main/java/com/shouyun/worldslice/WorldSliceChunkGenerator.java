@@ -29,6 +29,12 @@ import net.minecraft.server.level.WorldGenRegion;
  * every dependency chunk a lightweight empty chunk through the normal status
  * pipeline. It is installed at runtime and is never serialized as a new
  * dimension generator type.
+ *
+ * The wrapper intentionally owns no seed, biome source, noise sampler or
+ * random instance. Every playable-generation call delegates the original
+ * {@code RandomState}, carver {@code seed}, structure state and parent
+ * generator unchanged, so the active ServerLevel's World Seed remains the
+ * sole source of terrain variation.
  */
 public final class WorldSliceChunkGenerator extends ChunkGenerator {
     public static final MapCodec<WorldSliceChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
