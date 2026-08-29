@@ -8,6 +8,7 @@ World Slice turns Minecraft into a 16-block-thick world slice, preserving the ve
 - Vanilla terrain, biomes, caves, aquifers, ores, vegetation and structures in the playable slice
 - Visible vertical terrain layers and underground caves
 - Virtual fluid boundary for water, lava and other `FlowingFluid` implementations
+- Invisible player collision walls at the two outside faces of the slice
 - Terraria-style side camera with smooth entity interpolation
 - NeoForge 1.21.1 support
 
@@ -31,6 +32,10 @@ The playable block range is X=0 through X=15. Z remains open-ended in both direc
 World Slice wraps the existing Overworld `ChunkGenerator` when the server's chunk source is constructed. Chunk X=0 delegates the complete vanilla generation pipeline, while dependency chunks continue through normal chunk-status creation without terrain, carver, feature, mob or structure placement. This avoids generating a large world and deleting it afterward.
 
 The block, fluid and generation boundary is centralized in `WorldSliceBounds`. Outside the slice, reads expose void/empty fluid and writes are rejected before an out-of-bounds chunk is loaded. The fluid guard is applied at `FlowingFluid.canSpreadTo`, so it also covers fluids implemented through the vanilla flowing-fluid hierarchy.
+
+Player movement uses a separate virtual boundary. `EntityMixin` injects at the return of Minecraft 1.21.1's `Entity.collectColliders` and adds two finite-Z `VoxelShape` AABBs to the normal collision query: `[-1, 0]` and `[16, 17]`, spanning the level build height. Vanilla collision resolution therefore removes only the blocked X component while preserving Z movement, jumping, falling, swimming and flying behavior. The shapes are created only for non-spectator players in the sliced Overworld, and no barrier blocks, saved entities or persistent wall chunks are created.
+
+The server also performs a low-frequency safety check for `ServerPlayer` instances only. It clamps direct teleports, portals and other out-of-band position changes back inside the player bounding-box interval; ordinary movement is never implemented as a tick teleport. Spectators retain their normal no-clip behavior. The fluid boundary remains independent and continues to protect water and lava.
 
 ## Known Issues
 

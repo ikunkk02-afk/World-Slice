@@ -16,6 +16,7 @@ import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 public final class WorldSliceServerEvents {
+    private static final int PLAYER_BOUNDARY_SAFETY_INTERVAL_TICKS = 5;
     private static final Map<MinecraftServer, PendingSpawnSearch> PENDING_SPAWN_SEARCHES = new WeakHashMap<>();
 
     private WorldSliceServerEvents() {
@@ -74,7 +75,30 @@ public final class WorldSliceServerEvents {
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
+        if (event.getServer().getTickCount() % PLAYER_BOUNDARY_SAFETY_INTERVAL_TICKS == 0) {
+            enforcePlayerBoundarySafety(event.getServer().overworld());
+        }
         advanceSpawnSearch(event.getServer(), SpawnSafety.CHUNKS_PER_TICK);
+    }
+
+    /**
+     * Safety net for commands, portals and other direct teleports. Normal
+     * movement is handled by Entity's collision pipeline, not by this check.
+     */
+    private static void enforcePlayerBoundarySafety(ServerLevel level) {
+        if (!WorldSliceBounds.isWorldSliceLevel(level)) {
+            return;
+        }
+
+        for (ServerPlayer player : level.players()) {
+            if (!WorldSliceBounds.affectsPlayerCollision(player, level)
+                || WorldSliceBounds.isPlayerInside(player)) {
+                continue;
+            }
+
+            double safeX = WorldSliceBounds.clampPlayerX(player, player.getX());
+            player.teleportTo(safeX, player.getY(), player.getZ());
+        }
     }
 
     private static void advanceSpawnSearch(MinecraftServer server, int chunkBudget) {
@@ -160,7 +184,7 @@ public final class WorldSliceServerEvents {
         if (!(event.getEntity() instanceof ServerPlayer player) || !(player.level() instanceof ServerLevel level)) {
             return;
         }
-        if (WorldSliceBounds.isWorldSliceLevel(level) && !WorldSliceBounds.isInside(player.blockPosition())) {
+        if (WorldSliceBounds.isWorldSliceLevel(level) && !WorldSliceBounds.isPlayerInside(player)) {
             BlockPos safeSpawn = getFallbackSpawn(level);
             if (safeSpawn != null) {
                 player.teleportTo(safeSpawn.getX() + 0.5D, safeSpawn.getY(), safeSpawn.getZ() + 0.5D);

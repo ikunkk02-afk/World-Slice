@@ -4,6 +4,7 @@
   "package": "com.shouyun.worldslice.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "EntityMixin",
     "FlowingFluidMixin",
     "LevelMixin",
     "ServerLevelMixin",
