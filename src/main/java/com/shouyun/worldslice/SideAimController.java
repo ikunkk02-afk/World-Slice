@@ -13,13 +13,14 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 /** Keeps player aim independent from the fixed side-camera orientation. */
 @EventBusSubscriber(modid = WorldSlice.MODID, value = Dist.CLIENT)
 public final class SideAimController {
-    private static final Vec3 DEFAULT_AIM_DIRECTION = new Vec3(0.0D, 0.0D, 1.0D);
+    private static final Vec3 DEFAULT_AIM_DIRECTION = new Vec3(1.0D, 0.0D, 0.0D);
 
     private static double virtualCrosshairX;
     private static double virtualCrosshairY;
     private static Vec3 lastAimDirection = DEFAULT_AIM_DIRECTION;
     private static int lastGuiWidth = -1;
     private static int lastGuiHeight = -1;
+    private static int depthSign = 1;
     private static boolean initialized;
 
     private SideAimController() {
@@ -27,11 +28,12 @@ public final class SideAimController {
 
     public static void enable(Minecraft minecraft) {
         initialized = false;
+        depthSign = 1;
         syncViewport(minecraft, true);
 
         LocalPlayer player = minecraft.player;
         if (player != null) {
-            lastAimDirection = SideAimMath.flattenToSidePlane(player.getViewVector(1.0F), DEFAULT_AIM_DIRECTION);
+            lastAimDirection = SideAimMath.normalizeOrFallback(player.getViewVector(1.0F), DEFAULT_AIM_DIRECTION);
             applyAimDirection(player, lastAimDirection);
         } else {
             lastAimDirection = DEFAULT_AIM_DIRECTION;
@@ -42,6 +44,12 @@ public final class SideAimController {
         initialized = false;
         lastGuiWidth = -1;
         lastGuiHeight = -1;
+        depthSign = 1;
+    }
+
+    public static void toggleDepth() {
+        depthSign = -depthSign;
+        updatePlayerAim(Minecraft.getInstance());
     }
 
     /**
@@ -178,6 +186,7 @@ public final class SideAimController {
             SideCameraConfig.CAMERA_FOV,
             aspectRatio
         );
+        Vec3 depthDirection = cameraForward.scale(depthSign);
         Vec3 screenRight = cameraLeft.reverse();
         Vec3 aimDirection = SideAimMath.directionFromScreen(
             virtualCrosshairX,
@@ -187,11 +196,12 @@ public final class SideAimController {
             screenHeight,
             SideCameraConfig.CAMERA_FOV,
             aspectRatio,
+            depthDirection,
             screenRight,
             cameraUp
         );
         if (aimDirection == null) {
-            // The cursor is exactly on the player projection. Keep the last valid side-plane direction.
+            // A degenerate camera basis must not overwrite the last valid direction.
             aimDirection = lastAimDirection;
         } else {
             lastAimDirection = aimDirection;

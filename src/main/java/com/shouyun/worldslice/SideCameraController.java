@@ -23,6 +23,13 @@ public final class SideCameraController {
         GLFW.GLFW_KEY_V,
         "key.categories.worldslice"
     );
+    private static final KeyMapping TOGGLE_DEPTH_KEY = new KeyMapping(
+        "key.worldslice.side_camera_depth",
+        KeyConflictContext.IN_GAME,
+        InputConstants.Type.KEYSYM,
+        GLFW.GLFW_KEY_R,
+        "key.categories.worldslice"
+    );
 
     private static boolean enabled;
     private static CameraType previousCameraType = CameraType.FIRST_PERSON;
@@ -33,6 +40,7 @@ public final class SideCameraController {
 
     public static void registerKeyMapping(RegisterKeyMappingsEvent event) {
         event.register(TOGGLE_KEY);
+        event.register(TOGGLE_DEPTH_KEY);
     }
 
     @SubscribeEvent
@@ -40,6 +48,11 @@ public final class SideCameraController {
         Minecraft minecraft = Minecraft.getInstance();
         while (TOGGLE_KEY.consumeClick()) {
             toggle(minecraft);
+        }
+        while (TOGGLE_DEPTH_KEY.consumeClick()) {
+            if (enabled && minecraft.screen == null && minecraft.player != null && minecraft.level != null) {
+                SideAimController.toggleDepth();
+            }
         }
     }
 

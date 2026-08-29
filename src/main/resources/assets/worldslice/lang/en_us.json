@@ -1,4 +1,5 @@
 {
   "key.categories.worldslice": "World Slice",
-  "key.worldslice.side_camera": "Toggle Side Camera"
+  "key.worldslice.side_camera": "Toggle Side Camera",
+  "key.worldslice.side_camera_depth": "Toggle Side Camera Depth"
 }
