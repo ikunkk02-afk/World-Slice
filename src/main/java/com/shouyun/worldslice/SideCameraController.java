@@ -47,6 +47,7 @@ public final class SideCameraController {
         Options options = minecraft.options;
         if (enabled) {
             enabled = false;
+            SideAimController.disable();
             options.setCameraType(previousCameraType);
             options.bobView().set(previousBobView);
             return;
@@ -57,6 +58,7 @@ public final class SideCameraController {
         enabled = true;
         options.setCameraType(CameraType.THIRD_PERSON_BACK);
         options.bobView().set(false);
+        SideAimController.enable(minecraft);
     }
 
     public static boolean isEnabled() {

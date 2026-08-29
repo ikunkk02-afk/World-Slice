@@ -11,7 +11,8 @@
     "WorldGenRegionMixin"
   ],
   "client": [
-    "CameraMixin"
+    "CameraMixin",
+    "MouseHandlerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
