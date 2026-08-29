@@ -31,9 +31,13 @@ public final class WorldSliceWorldSettings extends SavedData {
     private static volatile boolean clientWorldSliceActive;
     private static volatile long clientSettingsRevision;
 
-    private volatile int worldThickness = DEFAULT_WORLD_THICKNESS;
+    private volatile int worldThickness;
 
     private WorldSliceWorldSettings() {
+        // A brand new world starts from the user's configured default. Only
+        // this first initialization reads the default; afterwards the value is
+        // persisted per save and never changes when the default is edited.
+        this.worldThickness = WorldSliceDefaultsConfig.defaultWorldThickness();
         // A newly created setting must be written even before the first UI
         // change, so old worlds receive an explicit default SavedData file.
         setDirty();
@@ -58,7 +62,7 @@ public final class WorldSliceWorldSettings extends SavedData {
         WorldSliceWorldSettings settings = new WorldSliceWorldSettings();
         settings.worldThickness = tag.contains(WORLD_THICKNESS_TAG)
             ? sanitize(tag.getInt(WORLD_THICKNESS_TAG))
-            : DEFAULT_WORLD_THICKNESS;
+            : WorldSliceDefaultsConfig.defaultWorldThickness();
         return settings;
     }
 

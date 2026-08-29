@@ -7,6 +7,8 @@
   "worldslice.screen.syncing": "正在同步…",
   "worldslice.screen.world": "世界",
   "worldslice.screen.world_thickness": "世界厚度",
+  "worldslice.screen.default_world_thickness": "新世界默认厚度",
+  "worldslice.screen.default_thickness_hint": "世界厚度是每个存档独立保存的。这里的值仅用于新建世界。",
   "worldslice.screen.world_thickness_hint": "控制可玩区域的 X 轴宽度。范围：1-4096 格。",
   "worldslice.screen.chunk_summary": "%s 格 / %s 区块",
   "worldslice.screen.server_only": "只有服务器管理员可以修改此设置。",

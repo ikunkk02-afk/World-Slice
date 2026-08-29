@@ -7,6 +7,8 @@
   "worldslice.screen.syncing": "Syncing...",
   "worldslice.screen.world": "World",
   "worldslice.screen.world_thickness": "World Thickness",
+  "worldslice.screen.default_world_thickness": "New World Default Thickness",
+  "worldslice.screen.default_thickness_hint": "World thickness is stored per save. This value is only used for new worlds.",
   "worldslice.screen.world_thickness_hint": "Controls the playable X-axis width. Range: 1-4096 blocks.",
   "worldslice.screen.chunk_summary": "%s Blocks / %s Chunks",
   "worldslice.screen.server_only": "Only server operators can change this setting.",

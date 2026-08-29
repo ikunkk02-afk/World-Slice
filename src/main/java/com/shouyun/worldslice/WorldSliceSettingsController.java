@@ -49,7 +49,7 @@ public final class WorldSliceSettingsController {
 
         while (SETTINGS_KEY.consumeClick()) {
             if (minecraft.screen == null && minecraft.player != null && minecraft.level != null) {
-                minecraft.setScreen(new WorldSliceConfigScreen(null));
+                minecraft.setScreen(new WorldSliceConfigScreen(null, ConfigScreenContext.IN_WORLD));
             }
         }
     }
@@ -80,7 +80,7 @@ public final class WorldSliceSettingsController {
         int y = lastButton.getY() + lastButton.getHeight() + 4;
         event.addListener(Button.builder(
             Component.translatable("worldslice.screen.pause_button"),
-            button -> Minecraft.getInstance().setScreen(new WorldSliceConfigScreen(pauseScreen))
+            button -> Minecraft.getInstance().setScreen(new WorldSliceConfigScreen(pauseScreen, ConfigScreenContext.IN_WORLD))
         ).bounds(x, y, 204, 20).build());
     }
 }
