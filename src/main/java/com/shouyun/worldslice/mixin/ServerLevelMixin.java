@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArgs;
 import org.spongepowered.asm.mixin.injection.invoke.arg.Args;
 
 import com.shouyun.worldslice.WorldSliceChunkGenerator;
+import com.shouyun.worldslice.WorldSliceGenerator;
 
 @Mixin(ServerLevel.class)
 public abstract class ServerLevelMixin {
@@ -20,7 +21,7 @@ public abstract class ServerLevelMixin {
     private static void worldslice$wrapGenerator(Args args) {
         ServerLevel level = args.get(0);
         ChunkGenerator generator = args.get(5);
-        if (level.dimension().equals(Level.OVERWORLD) && !(generator instanceof WorldSliceChunkGenerator)) {
+        if (level.dimension().equals(Level.OVERWORLD) && !(generator instanceof WorldSliceGenerator)) {
             args.set(5, WorldSliceChunkGenerator.wrap(generator));
         }
     }

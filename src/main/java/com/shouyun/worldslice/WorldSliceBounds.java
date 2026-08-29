@@ -35,7 +35,7 @@ public final class WorldSliceBounds {
         return !level.isClientSide
             && level.dimension().equals(Level.OVERWORLD)
             && level.getChunkSource() instanceof ServerChunkCache serverChunkCache
-            && serverChunkCache.getGenerator() instanceof WorldSliceChunkGenerator;
+            && serverChunkCache.getGenerator() instanceof WorldSliceGenerator;
     }
 
     public static boolean isWorldSliceLevel(BlockGetter level) {

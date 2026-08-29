@@ -29,7 +29,14 @@ public final class WorldSliceServerEvents {
         }
 
         BlockPos vanillaSpawn = overworld.getLevelData().getSpawnPos();
+        WorldSliceGenerator generator = (WorldSliceGenerator)overworld.getChunkSource().getGenerator();
         WorldSlice.LOGGER.debug("World Slice world seed: {}", overworld.getSeed());
+        WorldSlice.LOGGER.debug(
+            "World Slice generator: {} (parent: {}, spawn targets: {})",
+            generator.getClass().getSimpleName(),
+            generator.parent().getClass().getSimpleName(),
+            overworld.getChunkSource().randomState().sampler().spawnTarget().size()
+        );
         WorldSlice.LOGGER.debug("Vanilla/default spawn before adjustment: {}", vanillaSpawn);
 
         WorldSliceSpawnData savedData = WorldSliceSpawnData.get(overworld);
@@ -56,8 +63,13 @@ public final class WorldSliceServerEvents {
         // The first phase is small enough to make the common case ready at
         // startup. Wider phases are continued four chunks per server tick.
         advanceSpawnSearch(event.getServer(), SpawnSafety.INITIAL_CHUNKS_PER_START);
-        WorldSlice.LOGGER.info("World Slice Overworld active: X={}..{} (spawn search in progress)",
-            WorldSliceBounds.minX(), WorldSliceBounds.maxX());
+        if (PENDING_SPAWN_SEARCHES.containsKey(event.getServer())) {
+            WorldSlice.LOGGER.info("World Slice Overworld active: X={}..{} (spawn search in progress)",
+                WorldSliceBounds.minX(), WorldSliceBounds.maxX());
+        } else {
+            WorldSlice.LOGGER.info("World Slice Overworld active: X={}..{} (spawn initialized)",
+                WorldSliceBounds.minX(), WorldSliceBounds.maxX());
+        }
     }
 
     @SubscribeEvent

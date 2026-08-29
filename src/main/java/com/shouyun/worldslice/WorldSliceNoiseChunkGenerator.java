@@ -8,6 +8,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.StructureManager;
@@ -17,49 +18,41 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
-import net.minecraft.server.level.WorldGenRegion;
 
 /**
- * Keeps the vanilla generator for the single playable chunk column and makes
- * every dependency chunk a lightweight empty chunk through the normal status
- * pipeline. It is installed at runtime and is never serialized as a new
- * dimension generator type.
+ * World Slice wrapper for vanilla noise generation.
  *
- * The wrapper intentionally owns no seed, biome source, noise sampler or
- * random instance. Every playable-generation call delegates the original
- * {@code RandomState}, carver {@code seed}, structure state and parent
- * generator unchanged, so the active ServerLevel's World Seed remains the
- * sole source of terrain variation.
+ * This class deliberately remains a {@link NoiseBasedChunkGenerator}. ChunkMap
+ * uses that runtime type to select the world's real NoiseGeneratorSettings
+ * when it creates RandomState. A plain ChunkGenerator decorator would make
+ * ChunkMap use NoiseGeneratorSettings.dummy(), flattening seed-dependent
+ * terrain and biome noise before any delegated generation method is called.
  */
-public final class WorldSliceChunkGenerator extends ChunkGenerator implements WorldSliceGenerator {
-    public static final MapCodec<WorldSliceChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-        ChunkGenerator.CODEC.fieldOf("parent").forGetter(WorldSliceChunkGenerator::parent)
-    ).apply(instance, WorldSliceChunkGenerator::new));
+public final class WorldSliceNoiseChunkGenerator extends NoiseBasedChunkGenerator implements WorldSliceGenerator {
+    public static final MapCodec<WorldSliceNoiseChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+        NoiseBasedChunkGenerator.CODEC.codec().fieldOf("parent").forGetter(WorldSliceNoiseChunkGenerator::parentNoiseGenerator)
+    ).apply(instance, WorldSliceNoiseChunkGenerator::new));
 
-    private final ChunkGenerator parent;
+    private final NoiseBasedChunkGenerator parent;
 
-    public WorldSliceChunkGenerator(ChunkGenerator parent) {
-        super(parent.getBiomeSource());
+    public WorldSliceNoiseChunkGenerator(NoiseBasedChunkGenerator parent) {
+        super(parent.getBiomeSource(), parent.generatorSettings());
         this.parent = parent;
     }
 
-    public static ChunkGenerator wrap(ChunkGenerator generator) {
-        if (generator instanceof WorldSliceGenerator) {
-            return generator;
-        }
-        if (generator instanceof NoiseBasedChunkGenerator noiseGenerator) {
-            return new WorldSliceNoiseChunkGenerator(noiseGenerator);
-        }
-        return new WorldSliceChunkGenerator(generator);
+    @Override
+    public ChunkGenerator parent() {
+        return parent;
     }
 
-    public ChunkGenerator parent() {
+    private NoiseBasedChunkGenerator parentNoiseGenerator() {
         return parent;
     }
 
@@ -119,7 +112,7 @@ public final class WorldSliceChunkGenerator extends ChunkGenerator implements Wo
     @Override
     public void createStructures(
         RegistryAccess registryAccess,
-        net.minecraft.world.level.chunk.ChunkGeneratorStructureState structureState,
+        ChunkGeneratorStructureState structureState,
         StructureManager structureManager,
         ChunkAccess chunk,
         StructureTemplateManager structureTemplateManager
